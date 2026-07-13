@@ -268,7 +268,7 @@ function drawLine(canvasId, data, key, target, invert) {
 
   const vals = data.map(d => d.metrics[key]).filter(v => v !== null && v !== undefined);
   if (vals.length === 0) {
-    ctx.fillStyle = '#484f58';
+    ctx.fillStyle = '#8b949e';
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText('no data', W / 2, H / 2 + 4);
@@ -283,13 +283,13 @@ function drawLine(canvasId, data, key, target, invert) {
   const y = (v) => pad.t + ch - ((v - lo) / range) * ch;
 
   // Grid
-  ctx.strokeStyle = '#21262d';
+  ctx.strokeStyle = '#30363d';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const yy = pad.t + (ch / 4) * i;
     ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(W - pad.r, yy); ctx.stroke();
     const val = hi - (range / 4) * i;
-    ctx.fillStyle = '#484f58'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
     ctx.fillText(key === 'max_crap_app' ? val.toFixed(0) : val.toFixed(1) + '%', pad.l - 6, yy + 3);
   }
 
@@ -325,7 +325,7 @@ function drawLine(canvasId, data, key, target, invert) {
   ctx.stroke();
 
   // X labels — show first, middle, last (rotated to avoid overlap)
-  ctx.fillStyle = '#484f58'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#8b949e'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
   const indices = new Set();
   indices.add(0);
   indices.add(data.length - 1);
