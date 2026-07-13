@@ -19,8 +19,13 @@ fn format_comma(n: i64) -> String {
 }
 
 /// Update an existing fallow-progress.md by inserting a new table row after the header separator.
+/// Creates a .bak backup before writing.
 pub fn update(md_path: &Path, metrics: &UnifiedMetrics, note: &str) -> Result<()> {
     let content = std::fs::read_to_string(md_path)?;
+
+    // Backup before modifying
+    let backup_path = md_path.with_extension("md.bak");
+    std::fs::write(&backup_path, &content)?;
 
     let now = Utc::now().format("%Y-%m-%dT%H:%M").to_string();
     let loc = metrics.loc.unwrap_or(0);

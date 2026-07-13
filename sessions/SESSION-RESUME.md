@@ -108,9 +108,27 @@ qualifier (Rust binary)
 ## Distribution
 
 ```bash
-# bashrc
+# bashrc (Windows host)
 alias qualifier="E:/projects/CommonTools/target/release/qualifier"
 ```
+
+## Running in Docker Projects (PropertyShop)
+
+PropertyShop runs inside Docker — `npx` and `node_modules` are in the container, not on the host.
+
+**Option A: Run inside the container** (recommended)
+```bash
+# Mount the qualifier binary or copy it into the container
+docker compose exec app sh -c "qualifier --note 'Phase 4M done'"
+```
+
+**Option B: Run from host with `--project-dir`**
+```bash
+qualifier --project-dir E:/projects/propertyshop --note "Phase 4M done"
+```
+This works for fallow (uses container's node_modules via host mount) but vitest will fail if PostgreSQL isn't available on the host.
+
+**Output location:** All files (`qualifier.json`, `quality.html`, updated `fallow-chart.html`, `fallow-progress.md`) land in the project root — `E:/projects/propertyshop/` on host, `/app/` in container.
 
 ## Environment
 

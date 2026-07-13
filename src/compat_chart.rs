@@ -4,8 +4,13 @@ use chrono::Utc;
 use std::path::Path;
 
 /// Update an existing fallow-chart.html by appending a new row to the embedded JS data array.
+/// Creates a .bak backup before writing.
 pub fn update(chart_path: &Path, metrics: &UnifiedMetrics, note: &str) -> Result<()> {
     let content = std::fs::read_to_string(chart_path)?;
+
+    // Backup before modifying
+    let backup_path = chart_path.with_extension("html.bak");
+    std::fs::write(&backup_path, &content)?;
 
     let now = Utc::now().format("%Y-%m-%dT%H:%M").to_string();
     let mi = metrics.mi.unwrap_or(0.0);

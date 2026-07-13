@@ -20,6 +20,9 @@ Desktop.ini
 qualifier.json
 quality.html
 
+# Compat backups
+*.bak
+
 # Source template (tracked)
 !templates/quality.html
 
