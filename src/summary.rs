@@ -82,6 +82,20 @@ pub fn print_summary(
     };
     println!("  Max CRAP:      {crap_str:<10} Tests: {test_str}");
 
+    // Clippy row (only if clippy ran)
+    if let Some(warnings) = metrics.clippy_warnings {
+        let warn_str = warnings.to_string();
+        let err_str = metrics
+            .clippy_errors
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".to_string());
+        let files_str = metrics
+            .clippy_files
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".to_string());
+        println!("  Clippy:        {warn_str} warnings  /  {err_str} errors  /  {files_str} files");
+    }
+
     // Footer
     println!("═══════════════════════════════════════");
     println!("  Run #{run_num} in {total_s:.1}s");

@@ -1,5 +1,6 @@
 mod checker;
 mod chart;
+mod clippy;
 mod compat_chart;
 mod compat_md;
 mod detect;

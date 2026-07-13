@@ -52,6 +52,15 @@ pub struct UnifiedMetrics {
     pub test_count: Option<i64>,
     pub test_files: Option<i64>,
 
+    // Clippy metrics
+    pub clippy_warnings: Option<i64>,
+    pub clippy_errors: Option<i64>,
+    pub clippy_allowed: Option<i64>,
+    pub clippy_files: Option<i64>,
+    pub clippy_complexity: Option<i64>,
+    pub clippy_correctness: Option<i64>,
+    pub clippy_perf: Option<i64>,
+
     // Security metrics (future)
     // pub vuln_count: Option<i64>,
     // pub vuln_critical: Option<i64>,
@@ -79,6 +88,13 @@ pub fn build_unified(metrics: &BTreeMap<String, MetricValue>) -> UnifiedMetrics 
         cov_lines: get_float(metrics, "cov_lines"),
         test_count: get_int(metrics, "test_count"),
         test_files: get_int(metrics, "test_files"),
+        clippy_warnings: get_int(metrics, "clippy_warnings"),
+        clippy_errors: get_int(metrics, "clippy_errors"),
+        clippy_allowed: get_int(metrics, "clippy_allowed"),
+        clippy_files: get_int(metrics, "clippy_files"),
+        clippy_complexity: get_int(metrics, "clippy_complexity"),
+        clippy_correctness: get_int(metrics, "clippy_correctness"),
+        clippy_perf: get_int(metrics, "clippy_perf"),
     }
 }
 

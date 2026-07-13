@@ -24,5 +24,10 @@ pub fn detect_checkers(project_dir: &Path) -> Vec<String> {
         }
     }
 
+    // Clippy: look for Cargo.toml
+    if project_dir.join("Cargo.toml").exists() {
+        checkers.push("clippy".to_string());
+    }
+
     checkers
 }

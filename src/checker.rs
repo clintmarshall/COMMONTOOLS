@@ -29,6 +29,7 @@ pub fn get_checker(name: &str) -> Result<Box<dyn Checker>> {
     match name {
         "fallow" => Ok(Box::new(crate::fallow::FallowChecker)),
         "vitest" => Ok(Box::new(crate::vitest::VitestChecker)),
+        "clippy" => Ok(Box::new(crate::clippy::ClippyChecker)),
         unknown => anyhow::bail!("Unknown checker: {unknown}"),
     }
 }
