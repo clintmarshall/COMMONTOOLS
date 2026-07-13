@@ -178,7 +178,14 @@ function drawLine(canvasId, data, key, color, target, invert) {
   const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
 
   const vals = data.map(d => d.metrics[key]).filter(v => v !== null && v !== undefined);
-  if (vals.length === 0) return;
+  if (vals.length === 0) {
+    // Draw "no data" placeholder
+    ctx.fillStyle = '#484f58';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('no data', W / 2, H / 2 + 4);
+    return;
+  }
 
   const lo = Math.min(...vals, 0);
   const hi = Math.max(...vals, invert ? 100 : (key === 'max_crap_app' ? Math.max(...vals, 200) : 100));
