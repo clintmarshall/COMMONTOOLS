@@ -3,8 +3,8 @@
 > Living document. Updated throughout the session, not after.
 
 **Date:** 2026-07-13
-**Branch:** N/A (not a git repo yet)
-**Last Updated:** 2026-07-13 ~10:30
+**Branch:** main
+**Last Updated:** 2026-07-13 ~13:00
 
 ---
 
@@ -20,11 +20,13 @@
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `main.rs` | 218 | CLI entry, clap args, orchestration flow |
+| `main.rs` | ~250 | CLI entry, clap args, orchestration flow, auto output dir |
 | `checker.rs` | 42 | Checker trait + registry (`get_checker`) |
 | `detect.rs` | 35 | Auto-detect fallow/vitest from project signals |
-| `fallow.rs` | 145 | FallowChecker — runs `fallow --format json`, parses JSON |
-| `vitest.rs` | 230 | VitestChecker — runs `vitest run --coverage`, reads coverage files |
+| `docker.rs` | ~100 | Docker detection: compose file, running services, binary check |
+| `exec.rs` | ~50 | Unified command runner (Docker first, host fallback) |
+| `fallow.rs` | ~145 | FallowChecker — uses `exec::run_command()`, parses JSON |
+| `vitest.rs` | ~280 | VitestChecker — uses `exec::run_command()`, parses coverage (Clover/Istanbul) |
 | `metrics.rs` | 95 | UnifiedMetrics struct + MetricValue enum + merge logic |
 | `history.rs` | 65 | qualifier.json load/append/save |
 | `chart.rs` | 18 | Generate quality.html from embedded template |
@@ -34,14 +36,16 @@
 
 #### Template
 - `templates/quality.html` — Standalone HTML dashboard with:
-  - Summary cards (MI, Dead%, Dup%, Stmt%, Branch%, Func%, Max CRAP, Tests) with delta vs previous run
-  - 8 canvas charts (MI, Dead, Dup, Stmt, Branch, Func, CRAP, Lines)
-  - Delta table (current vs previous)
-  - Commentary timeline (reverse chronological)
+  - Overall quality score (green/amber/red) next to title
+  - Summary cards with traffic light colors and delta vs previous run
+  - 8 canvas charts with traffic light line colors (no dots, clean lines)
+  - Charts reordered: higher-is-better on left, lower-is-better on right
+  - Hover tooltips with plain English explanations
+  - Run history table (latest first, color-coded deltas)
   - Collapsible raw JSON
 
 #### Cross-Platform Fixes
-- `run_npx()` helper in fallow.rs and vitest.rs — tries `node_modules/.bin/<pkg>.cmd` (Windows) or `node_modules/.bin/<pkg>` (Unix) first, falls back to `npx.cmd`/`npx`
+- `exec::run_command()` — unified command runner: Docker container first (if binary installed there), then host `node_modules/.bin/<pkg>.cmd` (Windows) or `node_modules/.bin/<pkg>` (Unix), then `npx.cmd`/`npx`
 - `format_comma()` in summary.rs and compat_md.rs — Rust doesn't support `{:,}` formatting
 - Regex capture groups use closure callbacks (Rust's `format!` doesn't support `${1}`)
 
@@ -50,6 +54,9 @@
 - Markdown regex needed `(?m)` multiline flag
 - `clone_groups` missing from compat_md format string (18 placeholders, 17 args)
 - `args.note` moved multiple times — resolved with early clone
+- Istanbul parser double-counted statements (statementMap + s hits) — fixed
+- Charts drew "no data" before layout — wrapped in `requestAnimationFrame`
+- Coverage was null for Docker projects — added Docker auto-detection + Clover XML parsing
 
 #### Build Status
 - **Compiles clean** — 1 warning (unused `name()` on Checker trait, kept for future)
@@ -57,28 +64,27 @@
 
 #### Test Results
 - **FileBitch (native Windows):** Fallow ✅ (LOC 5277, MI 91.5, Dead 15.8%, Dup 11.8%, Max CRAP 210)
-- **PropertyShop (Docker):** Fallow ✅ (LOC 21201, MI 93.6, Dead 0%, Dup 7%, Max CRAP 992). Vitest fails (PostgreSQL not available on host)
-- **Compat layer:** fallow-chart.html update ✅. fallow-progress.md update ✅ (after multiline regex fix)
+- **PropertyShop (Docker):** Fallow ✅ (runs on host), Vitest ✅ (runs in container, PostgreSQL available)
+  - LOC 22,067, MI 93.6, Dead 0%, Dup 7%, Stmt 77.8%, Branch 66.2%, Func 87.1%, Max CRAP 992
+  - Score: 71% amber
+- **Compat layer:** fallow-chart.html update ✅. fallow-progress.md update ✅
 
 ---
 
 ## What's In Progress
 
-- **Qualifier Phase 1** — Core pipeline complete, needs final validation run
-- **Coverage parsing** — Istanbul fallback works but branch coverage needs verification against real data
+- **Qualifier Phase 2** — Docker support, dashboard polish, auto output dir (done Jul 13 ~13:00)
 
 ## What's Next (Prioritized)
 
-1. **Final validation** — Run qualifier against FileBitch (clean state), verify all 4 outputs (qualifier.json, quality.html, fallow-chart.html, fallow-progress.md)
-2. **Coverage fix** — Verify Istanbul branch coverage calculation against known-good data
-3. **Security checker** — Add placeholder for future security scanning (noted in design doc)
-4. **`qualifier init`** — Bootstrap new projects with fallow + vitest (see `qualifier-questions.md`)
-5. **Git init** — Initialize CommonTools as a git repo
-6. **Tests** — Unit tests for fallow JSON parsing, Istanbul coverage parsing, metrics merge
+1. **Score button on site UI** — Embed quality score badge in PropertyShop admin header (discussed, no decision)
+2. **Security checker** — Add placeholder for future security scanning (noted in design doc)
+3. **`qualifier init`** — Bootstrap new projects with fallow + vitest (see `qualifier-questions.md`)
+4. **Tests** — Unit tests for fallow JSON parsing, Istanbul coverage parsing, metrics merge
 
 ## Current Blockers
 
-- **None** — Build is green, waiting for validation run
+- **None** — Build is green, all features working
 
 ## Key Gotchas
 
@@ -87,16 +93,21 @@
 - **Regex multiline:** Need `(?m)` flag for `^` to match after newlines
 - **Istanbul coverage:** `coverage-final.json` is a map of file paths → coverage data. `s` = statement hits, `f` = function hits, `b` = branch hits (array per branch group)
 - **Coverage-summary.json:** Preferred source (vitest v3+). Has `total.statements.pct` directly
+- **Clover XML:** v8 provider produces `clover.xml` with `<metrics>` tag (not `<coverage>`). Parse `statements`, `coveredstatements`, `conditionals`, `coveredconditionals`, `methods`, `coveredmethods`
 - **Fallow JSON:** `health.vital_signs` for metrics, `check.summary` for counts, `dupes.stats` for duplication, `health.file_scores` for per-file CRAP
 - **Compat mode:** Updates existing fallow-chart.html and fallow-progress.md alongside new qualifier.json and quality.html
+- **Docker detection:** Check `docker-compose.yml` exists, find running service, check binary in container's `node_modules/.bin/` before using container
+- **Output dir:** Next.js/Vite → `public/` (auto-served). `qualifier.json` always in project root (data, not served)
 
 ## Architecture
 
 ```
 qualifier (Rust binary)
   ├── detect.rs       → scan project root for .fallowrc.json, vitest.config.*
-  ├── fallow.rs       → npx fallow --format json → parse JSON
-  ├── vitest.rs       → npx vitest run --coverage → read coverage/coverage-*.json
+  ├── docker.rs       → detect docker-compose, find running service, check binary in container
+  ├── exec.rs         → unified command runner (Docker first, host fallback)
+  ├── fallow.rs       → exec::run_command("fallow", ["--format", "json"]) → parse JSON
+  ├── vitest.rs       → exec::run_command("vitest", ["run", "--coverage"]) → parse coverage
   ├── metrics.rs      → merge into UnifiedMetrics
   ├── history.rs      → append run to qualifier.json
   ├── chart.rs        → generate quality.html from template
@@ -114,21 +125,19 @@ alias qualifier="E:/projects/CommonTools/target/release/qualifier"
 
 ## Running in Docker Projects (PropertyShop)
 
-PropertyShop runs inside Docker — `npx` and `node_modules` are in the container, not on the host.
-
-**Option A: Run inside the container** (recommended)
+**Qualifier auto-detects Docker.** Just run from host:
 ```bash
-# Mount the qualifier binary or copy it into the container
-docker compose exec app sh -c "qualifier --note 'Phase 4M done'"
+qualifier --project-dir E:/projects/PropertyShop --note "Phase 4M done"
 ```
+- Checks for `docker-compose.yml` → finds running service → checks if binary exists in container
+- vitest runs inside container (PostgreSQL available) → real coverage data
+- fallow runs on host (not installed in container) → works via host node_modules
+- Output: `qualifier.json` in project root, HTML files in `public/` (auto-served by Next.js)
 
-**Option B: Run from host with `--project-dir`**
+**Override output location:**
 ```bash
-qualifier --project-dir E:/projects/propertyshop --note "Phase 4M done"
+qualifier --output-dir ./reports --note "custom location"
 ```
-This works for fallow (uses container's node_modules via host mount) but vitest will fail if PostgreSQL isn't available on the host.
-
-**Output location:** All files (`qualifier.json`, `quality.html`, updated `fallow-chart.html`, `fallow-progress.md`) land in the project root — `E:/projects/propertyshop/` on host, `/app/` in container.
 
 ## Environment
 
