@@ -244,14 +244,17 @@ function drawLine(canvasId, data, key, color, target, invert) {
 }
 
 // ── DRAW CHARTS ──
-drawLine('miChart', runs, 'mi', '#58a6ff', 80, false);
-drawLine('deadChart', runs, 'dead_file_pct', '#f85149', 5, true);
-drawLine('dupChart', runs, 'dup_pct', '#d29922', 10, true);
-drawLine('stmtChart', runs, 'cov_stmt', '#3fb950', 80, false);
-drawLine('branchChart', runs, 'cov_branch', '#79c0ff', 80, false);
-drawLine('funcChart', runs, 'cov_func', '#f778ba', 80, false);
-drawLine('crapChart', runs, 'max_crap_app', '#ff7b72', null, true);
-drawLine('linesChart', runs, 'cov_lines', '#d2a8ff', 80, false);
+// Wait for layout so canvas elements have non-zero dimensions
+requestAnimationFrame(() => {
+  drawLine('miChart', runs, 'mi', '#58a6ff', 80, false);
+  drawLine('deadChart', runs, 'dead_file_pct', '#f85149', 5, true);
+  drawLine('dupChart', runs, 'dup_pct', '#d29922', 10, true);
+  drawLine('stmtChart', runs, 'cov_stmt', '#3fb950', 80, false);
+  drawLine('branchChart', runs, 'cov_branch', '#79c0ff', 80, false);
+  drawLine('funcChart', runs, 'cov_func', '#f778ba', 80, false);
+  drawLine('crapChart', runs, 'max_crap_app', '#ff7b72', null, true);
+  drawLine('linesChart', runs, 'cov_lines', '#d2a8ff', 80, false);
+});
 
 // ── DELTA TABLE ──
 (function renderDeltaTable() {
