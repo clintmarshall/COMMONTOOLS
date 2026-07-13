@@ -6,32 +6,67 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; }
-  h1 { font-size: 1.4rem; margin-bottom: 0.3rem; color: #58a6ff; display: flex; align-items: center; gap: 1rem; }
-  h1 .score { font-size: 2rem; font-weight: 800; }
-  h1 .score.green { color: #3fb950; }
-  h1 .score.amber { color: #d29922; }
-  h1 .score.red { color: #f85149; }
+  h1 { font-size: 1.4rem; margin-bottom: 0.3rem; color: #58a6ff; }
   .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 1.5rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
   .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; position: relative; }
-  .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 0.8rem; }
+  .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 0.5rem; text-align: center; }
+  .card .metric-value { font-size: 2rem; font-weight: 800; text-align: center; margin-bottom: 0.5rem; }
+  .card .metric-value.green { color: #3fb950; }
+  .card .metric-value.amber { color: #d29922; }
+  .card .metric-value.red { color: #f85149; }
   .card canvas { width: 100%; height: 200px; }
   .card .tooltip { display: none; position: absolute; top: 0.8rem; right: 1rem; background: #1c2128; border: 1px solid #30363d; border-radius: 6px; padding: 0.6rem 0.8rem; font-size: 0.75rem; color: #8b949e; max-width: 220px; line-height: 1.4; z-index: 10; }
   .card:hover .tooltip { display: block; }
   .legend { display: flex; gap: 1rem; margin-top: 0.6rem; font-size: 0.75rem; color: #8b949e; }
   .legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
-
-  /* Summary cards */
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-  .summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; text-align: center; }
-  .summary-card .label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
-  .summary-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
-  .summary-card .delta { font-size: 0.8rem; margin-top: 0.2rem; }
-  .summary-card .value.green { color: #3fb950; }
-  .summary-card .value.amber { color: #d29922; }
-  .summary-card .value.red { color: #f85149; }
   .up { color: #3fb950; }
   .down { color: #f85149; }
+
+  /* Score card — hero at top */
+  .score-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .score-card .score-label {
+    font-size: 0.75rem;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+  .score-card .score-value {
+    font-size: 3.5rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .score-card .score-value.green { color: #3fb950; }
+  .score-card .score-value.amber { color: #d29922; }
+  .score-card .score-value.red { color: #f85149; }
+  .score-card .score-breakdown {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 0.8rem;
+    font-size: 0.8rem;
+    color: #8b949e;
+  }
+  .score-card .score-breakdown span::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .score-card .breakdown-green::before { background: #3fb950; }
+  .score-card .breakdown-amber::before { background: #d29922; }
+  .score-card .breakdown-red::before { background: #f85149; }
 
   /* Run history table */
   .run-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: 0.75rem; }
@@ -48,55 +83,70 @@
 </head>
 <body>
 
-<h1 id="title">Qualifier — Quality Dashboard <span class="score" id="score"></span></h1>
+<h1 id="title">Qualifier — Quality Dashboard</h1>
 <p class="subtitle" id="subtitle"></p>
 
-<!-- Summary cards -->
-<div class="summary-grid" id="summaryGrid"></div>
+<!-- Overall Quality Score — top of page -->
+<div class="score-card" id="scoreCard">
+  <div class="score-label">Overall Quality Score</div>
+  <div class="score-value" id="score"></div>
+  <div class="score-breakdown" id="scoreBreakdown"></div>
+</div>
 
-<!-- Charts: higher-is-better on left, lower-is-better on right -->
+<!-- Chart cards — metric value above each chart -->
 <div class="grid">
-  <!-- Higher is better -->
   <div class="card">
-    <h2>Maintainability Index (target ≥ 80)</h2>
+    <h2>Maintainability Index</h2>
+    <div class="metric-value" id="miValue"></div>
     <canvas id="miChart"></canvas>
     <div class="tooltip">How easy the code is to maintain. Higher is better. Target: 80+. Below 60 means the code is hard to work with.</div>
   </div>
   <div class="card">
-    <h2>Statement Coverage (target ≥ 80%)</h2>
+    <h2>Statement Coverage</h2>
+    <div class="metric-value" id="stmtValue"></div>
     <canvas id="stmtChart"></canvas>
     <div class="tooltip">What percentage of code is exercised by tests. Higher means more confidence that changes won't break things. Target: 80%+.</div>
   </div>
   <div class="card">
-    <h2>Branch Coverage (target ≥ 80%)</h2>
+    <h2>Branch Coverage</h2>
+    <div class="metric-value" id="branchValue"></div>
     <canvas id="branchChart"></canvas>
     <div class="tooltip">How many if/else paths are tested. Low branch coverage means some code paths have never been tested.</div>
   </div>
   <div class="card">
-    <h2>Function Coverage (target ≥ 80%)</h2>
+    <h2>Function Coverage</h2>
+    <div class="metric-value" id="funcValue"></div>
     <canvas id="funcChart"></canvas>
     <div class="tooltip">What percentage of functions have been called by tests. Every function should be tested at least once.</div>
   </div>
   <div class="card">
-    <h2>Line Coverage (target ≥ 80%)</h2>
+    <h2>Line Coverage</h2>
+    <div class="metric-value" id="linesValue"></div>
     <canvas id="linesChart"></canvas>
     <div class="tooltip">What percentage of lines run during tests. Similar to statement coverage but counts individual lines.</div>
   </div>
-  <!-- Lower is better -->
   <div class="card">
-    <h2>Dead Files % (target ≤ 5%)</h2>
+    <h2>Dead Files %</h2>
+    <div class="metric-value" id="deadValue"></div>
     <canvas id="deadChart"></canvas>
     <div class="tooltip">Files that do nothing useful — no imports, no exports used. Dead files add confusion and slow down builds.</div>
   </div>
   <div class="card">
-    <h2>Duplication % (target ≤ 10%)</h2>
+    <h2>Duplication %</h2>
+    <div class="metric-value" id="dupValue"></div>
     <canvas id="dupChart"></canvas>
     <div class="tooltip">Code that's been copy-pasted. Duplicated code means bugs need fixing in multiple places. Target: under 10%.</div>
   </div>
   <div class="card">
-    <h2>Max CRAP — App Code (lower is better)</h2>
+    <h2>Max CRAP — App Code</h2>
+    <div class="metric-value" id="crapValue"></div>
     <canvas id="crapChart"></canvas>
     <div class="tooltip">Complexity Risk Anti-Pattern. Measures the most complex function. High CRAP = hard to change without breaking things.</div>
+  </div>
+  <div class="card">
+    <h2>Test Files</h2>
+    <div class="metric-value" id="filesValue"></div>
+    <div class="tooltip">Number of test files found. More test files generally means broader coverage.</div>
   </div>
 </div>
 
@@ -161,40 +211,46 @@ function trafficLight(value, better, green, amber) {
   });
 
   const total = metrics.length;
-  // Score: green = 100%, amber = 50%, red = 0%
   const score = Math.round(((greenCount + amberCount * 0.5) / total) * 100);
   const el = document.getElementById('score');
   el.textContent = score + '%';
-  el.className = 'score ' + (score >= 80 ? 'green' : score >= 50 ? 'amber' : 'red');
+  el.className = 'score-value ' + (score >= 80 ? 'green' : score >= 50 ? 'amber' : 'red');
+
+  const breakdown = document.getElementById('scoreBreakdown');
+  breakdown.innerHTML =
+    `<span class="breakdown-green">${greenCount} green</span>` +
+    `<span class="breakdown-amber">${amberCount} amber</span>` +
+    `<span class="breakdown-red">${redCount} red</span>`;
 })();
 
-// ── SUMMARY CARDS ──
-(function renderSummary() {
+// ── METRIC VALUES ABOVE CHARTS ──
+(function renderMetricValues() {
   if (runs.length === 0) return;
   const current = runs[runs.length - 1].metrics;
   const previous = runs.length > 1 ? runs[runs.length - 2].metrics : null;
 
-  const cards = [
-    { label: 'MI', value: fmt(current.mi), raw: current.mi, prev: previous?.mi, better: 'up', green: 80, amber: 60 },
-    { label: 'Dead %', value: fmt(current.dead_file_pct) + '%', raw: current.dead_file_pct, prev: previous?.dead_file_pct, better: 'down', green: 5, amber: 10 },
-    { label: 'Dup %', value: fmt(current.dup_pct) + '%', raw: current.dup_pct, prev: previous?.dup_pct, better: 'down', green: 10, amber: 15 },
-    { label: 'Stmt %', value: fmt(current.cov_stmt) + '%', raw: current.cov_stmt, prev: previous?.cov_stmt, better: 'up', green: 80, amber: 60 },
-    { label: 'Branch %', value: fmt(current.cov_branch) + '%', raw: current.cov_branch, prev: previous?.cov_branch, better: 'up', green: 80, amber: 60 },
-    { label: 'Func %', value: fmt(current.cov_func) + '%', raw: current.cov_func, prev: previous?.cov_func, better: 'up', green: 80, amber: 60 },
-    { label: 'Max CRAP', value: fmt(current.max_crap_app, 0), raw: current.max_crap_app, prev: previous?.max_crap_app, better: 'down', green: 100, amber: 500 },
-    { label: 'Test Files', value: fmtInt(current.test_files), raw: current.test_files, prev: previous?.test_files, better: 'up', green: 1, amber: 0 },
+  const items = [
+    { id: 'mi', valueFn: v => fmt(v), key: 'mi', better: 'up', green: 80, amber: 60 },
+    { id: 'stmt', valueFn: v => fmt(v) + '%', key: 'cov_stmt', better: 'up', green: 80, amber: 60 },
+    { id: 'branch', valueFn: v => fmt(v) + '%', key: 'cov_branch', better: 'up', green: 80, amber: 60 },
+    { id: 'func', valueFn: v => fmt(v) + '%', key: 'cov_func', better: 'up', green: 80, amber: 60 },
+    { id: 'lines', valueFn: v => fmt(v) + '%', key: 'cov_lines', better: 'up', green: 80, amber: 60 },
+    { id: 'dead', valueFn: v => fmt(v) + '%', key: 'dead_file_pct', better: 'down', green: 5, amber: 10 },
+    { id: 'dup', valueFn: v => fmt(v) + '%', key: 'dup_pct', better: 'down', green: 10, amber: 15 },
+    { id: 'crap', valueFn: v => fmt(v, 0), key: 'max_crap_app', better: 'down', green: 100, amber: 500 },
+    { id: 'files', valueFn: v => fmtInt(v), key: 'test_files', better: 'up', green: 1, amber: 0 },
   ];
 
-  const grid = document.getElementById('summaryGrid');
-  grid.innerHTML = cards.map(c => {
-    const d = c.value !== '—' && c.prev !== null ? delta(c.value.replace('%','')*1 || 0, c.prev, c.better) : '';
-    const color = trafficLight(c.raw, c.better, c.green, c.amber);
-    return `<div class="summary-card">
-      <div class="label">${c.label}</div>
-      <div class="value ${color}">${c.value}</div>
-      <div class="delta">${d}</div>
-    </div>`;
-  }).join('');
+  items.forEach(item => {
+    const valEl = document.getElementById(item.id + 'Value');
+    if (!valEl) return;
+
+    const raw = current[item.key];
+    const color = trafficLight(raw, item.better, item.green, item.amber);
+
+    valEl.textContent = item.valueFn(raw);
+    valEl.className = 'metric-value ' + color;
+  });
 })();
 
 // ── CHART RENDERING ──
@@ -251,10 +307,8 @@ function drawLine(canvasId, data, key, target, invert) {
   const latest = vals[vals.length - 1];
   let lineColor;
   if (invert) {
-    // Lower is better
     lineColor = latest <= target ? '#3fb950' : latest <= target * 1.5 ? '#d29922' : '#f85149';
   } else {
-    // Higher is better
     lineColor = latest >= target ? '#3fb950' : latest >= target * 0.75 ? '#d29922' : '#f85149';
   }
 
@@ -270,10 +324,25 @@ function drawLine(canvasId, data, key, target, invert) {
   });
   ctx.stroke();
 
-  // X labels
+  // X labels — show first, middle, last (rotated to avoid overlap)
   ctx.fillStyle = '#484f58'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
-  const step = Math.max(1, Math.floor(data.length / 10));
-  data.forEach((d, i) => { if (i % step === 0 || i === data.length - 1) ctx.fillText(d.ts.slice(5), x(i), H - pad.b + 15); });
+  const indices = new Set();
+  indices.add(0);
+  indices.add(data.length - 1);
+  if (data.length > 2) indices.add(Math.floor(data.length / 2));
+  data.forEach((d, i) => {
+    if (!indices.has(i)) return;
+    const label = d.ts.slice(5);
+    const lx = x(i);
+    const ly = H - pad.b + 12;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(-Math.PI / 4);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  });
 }
 
 // ── DRAW CHARTS ──
@@ -315,7 +384,6 @@ requestAnimationFrame(() => {
   tbl.appendChild(thead);
   const tbody = document.createElement('tbody');
 
-  // Reverse: latest first
   const reversed = runs.slice().reverse();
   reversed.forEach((r, i) => {
     const prev = i > 0 ? reversed[i - 1].metrics : null;
