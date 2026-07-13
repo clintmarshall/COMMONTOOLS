@@ -143,12 +143,7 @@
     <canvas id="crapChart"></canvas>
     <div class="tooltip">Complexity Risk Anti-Pattern. Measures the most complex function. High CRAP = hard to change without breaking things.</div>
   </div>
-  <div class="card">
-    <h2>Test Files</h2>
-    <div class="metric-value" id="filesValue"></div>
-    <div class="tooltip">Number of test files found. More test files generally means broader coverage.</div>
-  </div>
-</div>
+ </div>
 
 <!-- Run history table -->
 <table class="run-table" id="runTable"></table>
@@ -238,7 +233,6 @@ function trafficLight(value, better, green, amber) {
     { id: 'dead', valueFn: v => fmt(v) + '%', key: 'dead_file_pct', better: 'down', green: 5, amber: 10 },
     { id: 'dup', valueFn: v => fmt(v) + '%', key: 'dup_pct', better: 'down', green: 10, amber: 15 },
     { id: 'crap', valueFn: v => fmt(v, 0), key: 'max_crap_app', better: 'down', green: 100, amber: 500 },
-    { id: 'files', valueFn: v => fmtInt(v), key: 'test_files', better: 'up', green: 1, amber: 0 },
   ];
 
   items.forEach(item => {
@@ -368,7 +362,6 @@ requestAnimationFrame(() => {
     { key: 'cov_branch', label: 'Branch %', fmt: v => fmt(v) + '%', better: 'up' },
     { key: 'cov_func', label: 'Func %', fmt: v => fmt(v) + '%', better: 'up' },
     { key: 'max_crap_app', label: 'Max CRAP', fmt: v => fmt(v, 0), better: 'down' },
-    { key: 'test_files', label: 'Files', fmt: v => fmtInt(v), better: 'up' },
     { key: 'note', label: 'Notes', fmt: v => v || '', isMeta: true },
   ];
 
