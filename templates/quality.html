@@ -143,7 +143,7 @@ function delta(current, previous, better) {
     { label: 'Branch %', value: fmt(current.cov_branch) + '%', prev: previous?.cov_branch, better: 'up' },
     { label: 'Func %', value: fmt(current.cov_func) + '%', prev: previous?.cov_func, better: 'up' },
     { label: 'Max CRAP', value: fmt(current.max_crap_app, 0), prev: previous?.max_crap_app, better: 'down' },
-    { label: 'Tests', value: fmtInt(current.test_count), prev: previous?.test_count, better: 'up' },
+    { label: 'Test Files', value: fmtInt(current.test_files), prev: previous?.test_files, better: 'up' },
   ];
 
   const grid = document.getElementById('summaryGrid');
@@ -260,6 +260,7 @@ requestAnimationFrame(() => {
     { key: 'cov_branch', label: 'Branch %', fmt: v => fmt(v) + '%', better: 'up' },
     { key: 'cov_func', label: 'Func %', fmt: v => fmt(v) + '%', better: 'up' },
     { key: 'max_crap_app', label: 'Max CRAP', fmt: v => fmt(v, 0), better: 'down' },
+    { key: 'test_files', label: 'Files', fmt: v => fmtInt(v), better: 'up' },
     { key: 'note', label: 'Notes', fmt: v => v || '', isMeta: true },
   ];
 
