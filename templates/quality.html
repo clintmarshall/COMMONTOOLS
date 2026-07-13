@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Qualifier — Quality Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; }
+  h1 { font-size: 1.4rem; margin-bottom: 0.3rem; color: #58a6ff; }
+  .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; }
+  .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 0.8rem; }
+  .card canvas { width: 100%; height: 200px; }
+  .legend { display: flex; gap: 1rem; margin-top: 0.6rem; font-size: 0.75rem; color: #8b949e; }
+  .legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .legend .mi::before { background: #58a6ff; }
+  .legend .dead::before { background: #f85149; }
+  .legend .dup::before { background: #d29922; }
+  .legend .stmt::before { background: #3fb950; }
+  .legend .func::before { background: #f778ba; }
+  .legend .crap::before { background: #ff7b72; }
+  .legend .branch::before { background: #79c0ff; }
+  .legend .lines::before { background: #d2a8ff; }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; text-align: center; }
+  .summary-card .label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .summary-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
+  .summary-card .delta { font-size: 0.8rem; margin-top: 0.2rem; }
+  .up { color: #3fb950; }
+  .down { color: #f85149; }
+
+  /* Delta table */
+  .delta-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem; }
+  .delta-table th, .delta-table td { padding: 0.4rem 0.6rem; border: 1px solid #30363d; text-align: right; }
+  .delta-table th { color: #8b949e; font-weight: 600; }
+  .delta-table td:first-child { text-align: left; }
+
+  /* Timeline */
+  .timeline { margin-top: 1.5rem; }
+  .timeline h2 { font-size: 1rem; color: #58a6ff; margin-bottom: 0.8rem; }
+  .timeline-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
+  .timeline-item .ts { font-size: 0.75rem; color: #8b949e; }
+  .timeline-item .note { font-weight: 600; margin-top: 0.3rem; }
+  .timeline-item .commentary { margin-top: 0.5rem; font-size: 0.85rem; color: #8b949e; white-space: pre-wrap; }
+  .timeline-item .checkers { margin-top: 0.4rem; font-size: 0.75rem; color: #484f58; }
+
+  /* Raw JSON */
+  details { margin-top: 1.5rem; }
+  details summary { cursor: pointer; color: #58a6ff; font-size: 0.85rem; }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; overflow: auto; font-size: 0.75rem; max-height: 400px; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<h1 id="title">Qualifier — Quality Dashboard</h1>
+<p class="subtitle" id="subtitle"></p>
+
+<!-- Summary cards -->
+<div class="summary-grid" id="summaryGrid"></div>
+
+<!-- Charts -->
+<div class="grid">
+  <div class="card">
+    <h2>Maintainability Index (target ≥ 80)</h2>
+    <canvas id="miChart"></canvas>
+    <div class="legend"><span class="mi">MI</span></div>
+  </div>
+  <div class="card">
+    <h2>Dead Files % (target ≤ 5%)</h2>
+    <canvas id="deadChart"></canvas>
+    <div class="legend"><span class="dead">Dead Files %</span></div>
+  </div>
+  <div class="card">
+    <h2>Duplication % (target ≤ 10%)</h2>
+    <canvas id="dupChart"></canvas>
+    <div class="legend"><span class="dup">Duplication %</span></div>
+  </div>
+  <div class="card">
+    <h2>Statement Coverage (target ≥ 80%)</h2>
+    <canvas id="stmtChart"></canvas>
+    <div class="legend"><span class="stmt">Statements %</span></div>
+  </div>
+  <div class="card">
+    <h2>Branch Coverage (target ≥ 80%)</h2>
+    <canvas id="branchChart"></canvas>
+    <div class="legend"><span class="branch">Branches %</span></div>
+  </div>
+  <div class="card">
+    <h2>Function Coverage (target ≥ 80%)</h2>
+    <canvas id="funcChart"></canvas>
+    <div class="legend"><span class="func">Functions %</span></div>
+  </div>
+  <div class="card">
+    <h2>Max CRAP — App Code (lower is better)</h2>
+    <canvas id="crapChart"></canvas>
+    <div class="legend"><span class="crap">Max CRAP</span></div>
+  </div>
+  <div class="card">
+    <h2>Line Coverage (target ≥ 80%)</h2>
+    <canvas id="linesChart"></canvas>
+    <div class="legend"><span class="lines">Lines %</span></div>
+  </div>
+</div>
+
+<!-- Delta table -->
+<table class="delta-table" id="deltaTable"></table>
+
+<!-- Commentary timeline -->
+<div class="timeline" id="timeline">
+  <h2>📝 Run Timeline</h2>
+</div>
+
+<!-- Raw JSON -->
+<details>
+  <summary>Raw JSON</summary>
+  <pre id="rawJson"></pre>
+</details>
+
+<script>
+// ── DATA ──
+const runs = __RUNS_DATA_PLACEHOLDER__;
+
+// ── HELPERS ──
+function fmt(v, d = 1) { return v !== null && v !== undefined ? Number(v).toFixed(d) : '—'; }
+function fmtInt(v) { return v !== null && v !== undefined ? Number(v).toLocaleString() : '—'; }
+function delta(current, previous, better) {
+  if (previous === null || previous === undefined) return '';
+  const diff = current - previous;
+  const sign = (diff > 0 && better === 'up') || (diff < 0 && better === 'down') ? '↑' :
+               (diff < 0 && better === 'up') || (diff > 0 && better === 'down') ? '↓' : '→';
+  const cls = (diff > 0 && better === 'up') || (diff < 0 && better === 'down') ? 'up' :
+              (diff < 0 && better === 'up') || (diff > 0 && better === 'down') ? 'down' : '';
+  return diff === 0 ? '' : `<span class="${cls}">${sign} ${Math.abs(diff).toFixed(1)}</span>`;
+}
+
+// ── SUMMARY CARDS ──
+(function renderSummary() {
+  if (runs.length === 0) return;
+  const current = runs[runs.length - 1].metrics;
+  const previous = runs.length > 1 ? runs[runs.length - 2].metrics : null;
+
+  const cards = [
+    { label: 'MI', value: fmt(current.mi), prev: previous?.mi, better: 'up' },
+    { label: 'Dead %', value: fmt(current.dead_file_pct) + '%', prev: previous?.dead_file_pct, better: 'down' },
+    { label: 'Dup %', value: fmt(current.dup_pct) + '%', prev: previous?.dup_pct, better: 'down' },
+    { label: 'Stmt %', value: fmt(current.cov_stmt) + '%', prev: previous?.cov_stmt, better: 'up' },
+    { label: 'Branch %', value: fmt(current.cov_branch) + '%', prev: previous?.cov_branch, better: 'up' },
+    { label: 'Func %', value: fmt(current.cov_func) + '%', prev: previous?.cov_func, better: 'up' },
+    { label: 'Max CRAP', value: fmt(current.max_crap_app, 0), prev: previous?.max_crap_app, better: 'down' },
+    { label: 'Tests', value: fmtInt(current.test_count), prev: previous?.test_count, better: 'up' },
+  ];
+
+  const grid = document.getElementById('summaryGrid');
+  grid.innerHTML = cards.map(c => {
+    const d = c.value !== '—' && c.prev !== null ? delta(c.value.replace('%','')*1 || 0, c.prev, c.better) : '';
+    return `<div class="summary-card">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="delta">${d}</div>
+    </div>`;
+  }).join('');
+})();
+
+// ── CHART RENDERING ──
+function drawLine(canvasId, data, key, color, target, invert) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  c.width = c.clientWidth * dpr;
+  c.height = c.clientHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const W = c.clientWidth, H = c.clientHeight;
+  const pad = { t: 10, r: 15, b: 30, l: 45 };
+  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+
+  const vals = data.map(d => d.metrics[key]).filter(v => v !== null && v !== undefined);
+  if (vals.length === 0) return;
+
+  const lo = Math.min(...vals, 0);
+  const hi = Math.max(...vals, invert ? 100 : (key === 'max_crap_app' ? Math.max(...vals, 200) : 100));
+  const range = hi - lo || 1;
+
+  const x = (i) => pad.l + (i / (data.length - 1 || 1)) * cw;
+  const y = (v) => pad.t + ch - ((v - lo) / range) * ch;
+
+  // Grid
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const yy = pad.t + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(W - pad.r, yy); ctx.stroke();
+    const val = hi - (range / 4) * i;
+    ctx.fillStyle = '#484f58'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(key === 'max_crap_app' ? val.toFixed(0) : val.toFixed(1) + '%', pad.l - 6, yy + 3);
+  }
+
+  // Target line
+  if (target !== null && target !== undefined) {
+    const ty = y(target);
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = invert ? '#f8514966' : '#3fb95066';
+    ctx.beginPath(); ctx.moveTo(pad.l, ty); ctx.lineTo(W - pad.r, ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = invert ? '#f8514988' : '#3fb95088';
+    ctx.textAlign = 'left'; ctx.fillText((invert ? '≤ ' : '≥ ') + target + (key === 'max_crap_app' ? '' : '%'), pad.l + 5, ty - 5);
+  }
+
+  // Line
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  let started = false;
+  data.forEach((d, i) => {
+    const v = d.metrics[key];
+    if (v === null || v === undefined) return;
+    if (!started) { ctx.moveTo(x(i), y(v)); started = true; }
+    else ctx.lineTo(x(i), y(v));
+  });
+  ctx.stroke();
+
+  // Dots
+  data.forEach((d, i) => {
+    const v = d.metrics[key];
+    if (v === null || v === undefined) return;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x(i), y(v), 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9d1d9'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(key === 'max_crap_app' ? v.toFixed(0) : v.toFixed(1) + '%', x(i), y(v) - 10);
+  });
+
+  // X labels
+  ctx.fillStyle = '#484f58'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(data.length / 10));
+  data.forEach((d, i) => { if (i % step === 0 || i === data.length - 1) ctx.fillText(d.ts.slice(5), x(i), H - pad.b + 15); });
+}
+
+// ── DRAW CHARTS ──
+drawLine('miChart', runs, 'mi', '#58a6ff', 80, false);
+drawLine('deadChart', runs, 'dead_file_pct', '#f85149', 5, true);
+drawLine('dupChart', runs, 'dup_pct', '#d29922', 10, true);
+drawLine('stmtChart', runs, 'cov_stmt', '#3fb950', 80, false);
+drawLine('branchChart', runs, 'cov_branch', '#79c0ff', 80, false);
+drawLine('funcChart', runs, 'cov_func', '#f778ba', 80, false);
+drawLine('crapChart', runs, 'max_crap_app', '#ff7b72', null, true);
+drawLine('linesChart', runs, 'cov_lines', '#d2a8ff', 80, false);
+
+// ── DELTA TABLE ──
+(function renderDeltaTable() {
+  if (runs.length < 2) return;
+  const current = runs[runs.length - 1].metrics;
+  const previous = runs[runs.length - 2].metrics;
+
+  const cols = [
+    { key: 'mi', label: 'MI', better: 'up' },
+    { key: 'dead_file_pct', label: 'Dead %', better: 'down' },
+    { key: 'dup_pct', label: 'Dup %', better: 'down' },
+    { key: 'cov_stmt', label: 'Stmt %', better: 'up' },
+    { key: 'cov_branch', label: 'Branch %', better: 'up' },
+    { key: 'cov_func', label: 'Func %', better: 'up' },
+    { key: 'cov_lines', label: 'Lines %', better: 'up' },
+    { key: 'max_crap_app', label: 'Max CRAP', better: 'down' },
+    { key: 'test_count', label: 'Tests', better: 'up' },
+  ];
+
+  const tbl = document.getElementById('deltaTable');
+  const header = '<tr><th>Metric</th><th>Previous</th><th>Current</th><th>Delta</th></tr>';
+  const rows = cols.map(c => {
+    const cur = current[c.key] ?? 0;
+    const prev = previous[c.key] ?? 0;
+    const d = delta(cur, prev, c.better);
+    const cls = d.includes('up') ? 'up' : d.includes('down') ? 'down' : '';
+    const fmtVal = c.key === 'max_crap_app' || c.key === 'test_count' ? v => v.toFixed(0) : v => v.toFixed(1) + '%';
+    return `<tr><td>${c.label}</td><td>${fmtVal(prev)}</td><td>${fmtVal(cur)}</td><td class="${cls}">${d || '—'}</td></tr>`;
+  }).join('');
+  tbl.innerHTML = `<thead>${header}</thead><tbody>${rows}</tbody>`;
+})();
+
+// ── TIMELINE ──
+(function renderTimeline() {
+  const container = document.getElementById('timeline');
+  const items = runs.slice().reverse().map(r => {
+    const checkers = Object.entries(r.checkers || {}).map(([k, v]) =>
+      `${k} (${v.elapsed_ms}ms)`
+    ).join(', ');
+    return `<div class="timeline-item">
+      <div class="ts">${r.ts}</div>
+      <div class="note">${r.note || '(no note)'}</div>
+      ${r.commentary ? `<div class="commentary">${r.commentary}</div>` : ''}
+      <div class="checkers">${checkers}</div>
+    </div>`;
+  }).join('');
+  container.innerHTML = '<h2>📝 Run Timeline</h2>' + items;
+})();
+
+// ── RAW JSON ──
+document.getElementById('rawJson').textContent = JSON.stringify(runs, null, 2);
+
+// ── TITLE ──
+document.getElementById('subtitle').textContent = `${runs.length} runs · Last: ${runs[runs.length - 1]?.ts || 'N/A'}`;
+</script>
+</body>
+</html>

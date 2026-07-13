@@ -1,0 +1,24 @@
+# Rust
+/target
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+
+# Build artifacts (from test runs in other projects)
+qualifier.json
+quality.html
+
+# Source template (tracked)
+!templates/quality.html
