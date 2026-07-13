@@ -4,7 +4,7 @@
 
 **Date:** 2026-07-13
 **Branch:** main
-**Last Updated:** 2026-07-13 ~13:00
+**Last Updated:** 2026-07-13 ~14:30
 
 ---
 
@@ -36,10 +36,13 @@
 
 #### Template
 - `templates/quality.html` — Standalone HTML dashboard with:
-  - Overall quality score (green/amber/red) next to title
-  - Summary cards with traffic light colors and delta vs previous run
+  - **Overall Quality Score** — hero card at top of page, big percentage + green/amber/red breakdown
+  - **Chart cards** — each metric has its own card with value (2rem, centered, traffic-light colored) above the chart
   - 8 canvas charts with traffic light line colors (no dots, clean lines)
   - Charts reordered: higher-is-better on left, lower-is-better on right
+  - Clean chart titles (no target annotations — dashed lines convey that info)
+  - Timeline labels: up to 6 evenly-spaced `DD HH:MM` labels, rotated 45°
+  - Brighter axis labels and grid lines (`#8b949e` / `#30363d`)
   - Hover tooltips with plain English explanations
   - Run history table (latest first, color-coded deltas)
   - Collapsible raw JSON
@@ -58,6 +61,22 @@
 - Charts drew "no data" before layout — wrapped in `requestAnimationFrame`
 - Coverage was null for Docker projects — added Docker auto-detection + Clover XML parsing
 
+#### Jul 13 — Dashboard Layout Overhaul
+
+**Commits:** `1660f99`, `077aecc`, `237e6bc`
+
+**Changes:**
+- Overall Quality Score moved to top of page as standalone hero card with green/amber/red breakdown
+- Removed separate summary cards row — metric values now sit inside each chart card above the canvas
+- Each chart card: clean centered title → metric value (2rem, traffic-light colored) → chart canvas
+- Removed target annotations from chart titles (dashed lines on charts convey targets)
+- Chart titles horizontally centered
+- Timeline labels: up to 6 evenly-spaced `DD HH:MM` labels, rotated 45° to prevent overlap
+- Brighter axis labels (`#8b949e`) and grid lines (`#30363d`) for visibility
+- Increased bottom padding (30 → 40px) for rotated label room
+
+**Remote:** Added `origin` → `https://github.com/clintmarshall/COMMONTOOLS.git`, pushed `main`
+
 #### Build Status
 - **Compiles clean** — 1 warning (unused `name()` on Checker trait, kept for future)
 - Release binary: `target/release/qualifier.exe`
@@ -73,7 +92,7 @@
 
 ## What's In Progress
 
-- **Qualifier Phase 2** — Docker support, dashboard polish, auto output dir (done Jul 13 ~13:00)
+- **Qualifier Phase 2** — Docker support, dashboard polish, auto output dir (done Jul 13 ~14:30)
 
 ## What's Next (Prioritized)
 

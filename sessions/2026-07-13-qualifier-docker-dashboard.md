@@ -115,6 +115,39 @@ Converted old HTML data rows to qualifier.json schema. Replaced 9 test runs crea
 | Max CRAP | 992 | 🔴 |
 | **Score** | **71%** | **🟡** |
 
+---
+
+## Dashboard Layout Overhaul (Jul 13 ~14:00)
+
+**Trigger:** User wanted score card at top, metric values above their charts, cleaner presentation.
+
+### Commits
+
+| Commit | Message |
+|--------|---------|
+| `1660f99` | feat: dashboard layout overhaul — score at top, metric values above charts, clean titles |
+| `077aecc` | style: brighter chart axis labels and grid lines |
+| `237e6bc` | fix: chart timeline labels — clean HH:MM format, proper spacing |
+
+### Changes
+
+**Layout:**
+- Overall Quality Score → hero card at top of page (was inline with title)
+- Removed separate summary cards row
+- Each chart card now has: centered title → metric value (2rem, traffic-light colored) → chart canvas
+- Chart titles cleaned (removed target annotations — dashed lines convey that info)
+- Chart titles horizontally centered
+
+**Chart Improvements:**
+- Timeline labels: up to 6 evenly-spaced `DD HH:MM` labels, rotated 45° (was full ISO string, overlapping)
+- Axis labels: `#484f58` → `#8b949e` (brighter, more visible)
+- Grid lines: `#21262d` → `#30363d` (more visible)
+- Bottom padding: 30 → 40px (room for rotated labels)
+
+**Remote:**
+- Added `origin` → `https://github.com/clintmarshall/COMMONTOOLS.git`
+- Pushed `main` branch
+
 ## Open Questions
 
 - Score button on site UI: embed badge vs API endpoint? (discussed, no decision)
