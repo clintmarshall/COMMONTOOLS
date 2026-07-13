@@ -22,3 +22,7 @@ quality.html
 
 # Source template (tracked)
 !templates/quality.html
+
+# Playwright artifacts
+.playwright-mcp/
+*-dashboard.png
