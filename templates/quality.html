@@ -38,14 +38,12 @@
   .delta-table th { color: #8b949e; font-weight: 600; }
   .delta-table td:first-child { text-align: left; }
 
-  /* Timeline */
-  .timeline { margin-top: 1.5rem; }
-  .timeline h2 { font-size: 1rem; color: #58a6ff; margin-bottom: 0.8rem; }
-  .timeline-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
-  .timeline-item .ts { font-size: 0.75rem; color: #8b949e; }
-  .timeline-item .note { font-weight: 600; margin-top: 0.3rem; }
-  .timeline-item .commentary { margin-top: 0.5rem; font-size: 0.85rem; color: #8b949e; white-space: pre-wrap; }
-  .timeline-item .checkers { margin-top: 0.4rem; font-size: 0.75rem; color: #484f58; }
+  /* Run history table */
+  .run-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: 0.75rem; }
+  .run-table th, .run-table td { padding: 0.35rem 0.5rem; border: 1px solid #30363d; text-align: right; }
+  .run-table th { color: #8b949e; font-weight: 600; position: sticky; top: 0; background: #0d1117; }
+  .run-table td:first-child { text-align: left; }
+  .run-table td.note-cell { text-align: left; max-width: 300px; }
 
   /* Raw JSON */
   details { margin-top: 1.5rem; }
@@ -105,13 +103,8 @@
   </div>
 </div>
 
-<!-- Delta table -->
-<table class="delta-table" id="deltaTable"></table>
-
-<!-- Commentary timeline -->
-<div class="timeline" id="timeline">
-  <h2>📝 Run Timeline</h2>
-</div>
+<!-- Run history table -->
+<table class="run-table" id="runTable"></table>
 
 <!-- Raw JSON -->
 <details>
@@ -256,52 +249,44 @@ requestAnimationFrame(() => {
   drawLine('linesChart', runs, 'cov_lines', '#d2a8ff', 80, false);
 });
 
-// ── DELTA TABLE ──
-(function renderDeltaTable() {
-  if (runs.length < 2) return;
-  const current = runs[runs.length - 1].metrics;
-  const previous = runs[runs.length - 2].metrics;
-
+// ── RUN HISTORY TABLE ──
+(function renderRunTable() {
   const cols = [
-    { key: 'mi', label: 'MI', better: 'up' },
-    { key: 'dead_file_pct', label: 'Dead %', better: 'down' },
-    { key: 'dup_pct', label: 'Dup %', better: 'down' },
-    { key: 'cov_stmt', label: 'Stmt %', better: 'up' },
-    { key: 'cov_branch', label: 'Branch %', better: 'up' },
-    { key: 'cov_func', label: 'Func %', better: 'up' },
-    { key: 'cov_lines', label: 'Lines %', better: 'up' },
-    { key: 'max_crap_app', label: 'Max CRAP', better: 'down' },
-    { key: 'test_count', label: 'Tests', better: 'up' },
+    { key: 'ts', label: 'Date', fmt: v => v.slice(0, 16).replace('T', ' '), isMeta: true },
+    { key: 'mi', label: 'MI', fmt: v => fmt(v), better: 'up' },
+    { key: 'dead_file_pct', label: 'Dead %', fmt: v => fmt(v) + '%', better: 'down' },
+    { key: 'dup_pct', label: 'Dup %', fmt: v => fmt(v) + '%', better: 'down' },
+    { key: 'cov_stmt', label: 'Stmt %', fmt: v => fmt(v) + '%', better: 'up' },
+    { key: 'cov_branch', label: 'Branch %', fmt: v => fmt(v) + '%', better: 'up' },
+    { key: 'cov_func', label: 'Func %', fmt: v => fmt(v) + '%', better: 'up' },
+    { key: 'max_crap_app', label: 'Max CRAP', fmt: v => fmt(v, 0), better: 'down' },
+    { key: 'note', label: 'Notes', fmt: v => v || '', isMeta: true },
   ];
 
-  const tbl = document.getElementById('deltaTable');
-  const header = '<tr><th>Metric</th><th>Previous</th><th>Current</th><th>Delta</th></tr>';
-  const rows = cols.map(c => {
-    const cur = current[c.key] ?? 0;
-    const prev = previous[c.key] ?? 0;
-    const d = delta(cur, prev, c.better);
-    const cls = d.includes('up') ? 'up' : d.includes('down') ? 'down' : '';
-    const fmtVal = c.key === 'max_crap_app' || c.key === 'test_count' ? v => v.toFixed(0) : v => v.toFixed(1) + '%';
-    return `<tr><td>${c.label}</td><td>${fmtVal(prev)}</td><td>${fmtVal(cur)}</td><td class="${cls}">${d || '—'}</td></tr>`;
-  }).join('');
-  tbl.innerHTML = `<thead>${header}</thead><tbody>${rows}</tbody>`;
-})();
+  function cellClass(current, previous, col) {
+    if (current === previous) return '';
+    if (col.better === 'up') return current > previous ? 'up' : 'down';
+    return current < previous ? 'up' : 'down';
+  }
 
-// ── TIMELINE ──
-(function renderTimeline() {
-  const container = document.getElementById('timeline');
-  const items = runs.slice().reverse().map(r => {
-    const checkers = Object.entries(r.checkers || {}).map(([k, v]) =>
-      `${k} (${v.elapsed_ms}ms)`
-    ).join(', ');
-    return `<div class="timeline-item">
-      <div class="ts">${r.ts}</div>
-      <div class="note">${r.note || '(no note)'}</div>
-      ${r.commentary ? `<div class="commentary">${r.commentary}</div>` : ''}
-      <div class="checkers">${checkers}</div>
-    </div>`;
-  }).join('');
-  container.innerHTML = '<h2>📝 Run Timeline</h2>' + items;
+  const tbl = document.getElementById('runTable');
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr>' + cols.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
+  tbl.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  runs.forEach((r, i) => {
+    const prev = i > 0 ? runs[i - 1].metrics : null;
+    const cells = cols.map(c => {
+      const val = c.isMeta ? r[c.key] : r.metrics[c.key];
+      const prevVal = prev ? prev[c.key] : null;
+      const cls = prevVal !== null && !c.isMeta ? cellClass(val, prevVal, c) : '';
+      const display = val !== null && val !== undefined ? c.fmt(val) : '—';
+      const noteCls = c.key === 'note' ? 'note-cell' : '';
+      return `<td class="${cls} ${noteCls}">${display}</td>`;
+    }).join('');
+    tbody.innerHTML += '<tr>' + cells + '</tr>';
+  });
+  tbl.appendChild(tbody);
 })();
 
 // ── RAW JSON ──
