@@ -263,7 +263,7 @@ function drawLine(canvasId, data, key, target, invert) {
   c.height = c.clientHeight * dpr;
   ctx.scale(dpr, dpr);
   const W = c.clientWidth, H = c.clientHeight;
-  const pad = { t: 10, r: 15, b: 30, l: 45 };
+  const pad = { t: 10, r: 15, b: 40, l: 45 };
   const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
 
   const vals = data.map(d => d.metrics[key]).filter(v => v !== null && v !== undefined);
@@ -324,15 +324,15 @@ function drawLine(canvasId, data, key, target, invert) {
   });
   ctx.stroke();
 
-  // X labels — show first, middle, last (rotated to avoid overlap)
+  // X labels — spaced evenly, rotated to avoid overlap
   ctx.fillStyle = '#8b949e'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
-  const indices = new Set();
-  indices.add(0);
-  indices.add(data.length - 1);
-  if (data.length > 2) indices.add(Math.floor(data.length / 2));
+  const maxLabels = 6;
+  const labelStep = Math.max(1, Math.ceil(data.length / maxLabels));
   data.forEach((d, i) => {
-    if (!indices.has(i)) return;
-    const label = d.ts.slice(5);
+    if (i % labelStep !== 0 && i !== data.length - 1) return;
+    // Format: "DD HH:MM"
+    const dt = d.ts.slice(0, 16).replace('T', ' ');
+    const label = dt.slice(8); // "HH:MM"
     const lx = x(i);
     const ly = H - pad.b + 12;
     ctx.save();
