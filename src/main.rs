@@ -43,6 +43,10 @@ struct Args {
     /// Show checker stdout/stderr
     #[arg(long, short)]
     verbose: bool,
+
+    /// Output directory for generated files (default: auto-detect, e.g. public/ for Next.js)
+    #[arg(long)]
+    output_dir: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -54,6 +58,9 @@ fn main() -> Result<()> {
 
     // Resolve note early to avoid move issues
     let note = args.note.clone();
+
+    // Resolve output directory (auto-detect Next.js/Vite → public/)
+    let output_dir = resolve_output_dir(&project_dir, args.output_dir.as_ref());
 
     println!("🔍 Scanning project: {}", project_dir.display());
 
@@ -125,7 +132,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // 6. Load existing history
+    // 6. Load existing history (always in project root for consistency)
     let json_path = project_dir.join(&args.json);
     let mut history = history::load(&json_path)?;
 
@@ -144,29 +151,44 @@ fn main() -> Result<()> {
     };
     history.runs.push(run);
 
-    // 9. Save qualifier.json
+    // 9. Save qualifier.json (project root — data, not served)
     history::save(&history, &json_path)?;
     println!("💾 Saved {}/{}", project_dir.display(), args.json);
 
-    // 10. Generate quality.html
-    let html_path = project_dir.join("quality.html");
+    // 10. Generate quality.html (output_dir — auto-served for Next.js/Vite)
+    std::fs::create_dir_all(&output_dir)?;
+    let html_path = output_dir.join("quality.html");
     chart::generate(&history, &html_path)?;
     println!("📊 Generated quality.html");
 
-    // 11. Compat: update fallow-chart.html if it exists
-    let chart_path = project_dir.join("fallow-chart.html");
+    // 11. Compat: update fallow-chart.html if it exists (check both root and output_dir)
+    let chart_path = output_dir.join("fallow-chart.html");
+    let chart_path_root = project_dir.join("fallow-chart.html");
     if chart_path.exists() {
         if let Err(e) = compat_chart::update(&chart_path, &unified, &note.clone().unwrap_or_default()) {
             eprintln!("⚠️  Failed to update fallow-chart.html: {e}");
         } else {
             println!("📈 Updated fallow-chart.html (compat)");
         }
+    } else if chart_path_root.exists() {
+        if let Err(e) = compat_chart::update(&chart_path_root, &unified, &note.clone().unwrap_or_default()) {
+            eprintln!("⚠️  Failed to update fallow-chart.html: {e}");
+        } else {
+            println!("📈 Updated fallow-chart.html (compat)");
+        }
     }
 
-    // 12. Compat: update fallow-progress.md if it exists
-    let md_path = project_dir.join("fallow-progress.md");
+    // 12. Compat: update fallow-progress.md if it exists (check both root and output_dir)
+    let md_path = output_dir.join("fallow-progress.md");
+    let md_path_root = project_dir.join("fallow-progress.md");
     if md_path.exists() {
         if let Err(e) = compat_md::update(&md_path, &unified, &note.clone().unwrap_or_default()) {
+            eprintln!("⚠️  Failed to update fallow-progress.md: {e}");
+        } else {
+            println!("📝 Updated fallow-progress.md (compat)");
+        }
+    } else if md_path_root.exists() {
+        if let Err(e) = compat_md::update(&md_path_root, &unified, &note.clone().unwrap_or_default()) {
             eprintln!("⚠️  Failed to update fallow-progress.md: {e}");
         } else {
             println!("📝 Updated fallow-progress.md (compat)");
@@ -212,4 +234,56 @@ fn detect_project_name(project_dir: &Path) -> String {
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown-project".to_string())
+}
+
+/// Determine where output files should be written.
+///
+/// - Explicit `--output-dir` flag takes priority
+/// - Next.js projects → `public/` (auto-served by Next.js static file handler)
+/// - Vite projects → `public/` (served as-is)
+/// - Everything else → project root
+fn resolve_output_dir(
+    project_dir: &Path,
+    explicit: Option<&PathBuf>,
+) -> PathBuf {
+    // Explicit flag wins
+    if let Some(path) = explicit {
+        return path.clone();
+    }
+
+    // Detect Next.js (next.config.* or next in package.json dependencies)
+    let has_next_config = project_dir.join("next.config.js").exists()
+        || project_dir.join("next.config.mjs").exists()
+        || project_dir.join("next.config.ts").exists();
+
+    let has_next_dep = std::fs::read_to_string(project_dir.join("package.json"))
+        .ok()
+        .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+        .map(|v| {
+            v.get("dependencies")
+                .or_else(|| v.get("devDependencies"))
+                .and_then(|d| d.get("next"))
+                .is_some()
+        })
+        .unwrap_or(false);
+
+    if has_next_config || has_next_dep {
+        let public_dir = project_dir.join("public");
+        if public_dir.exists() {
+            return public_dir;
+        }
+    }
+
+    // Detect Vite (vite.config.*)
+    let has_vite = project_dir.join("vite.config.js").exists()
+        || project_dir.join("vite.config.ts").exists();
+    if has_vite {
+        let public_dir = project_dir.join("public");
+        if public_dir.exists() {
+            return public_dir;
+        }
+    }
+
+    // Default: project root
+    project_dir.to_path_buf()
 }
