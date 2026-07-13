@@ -29,6 +29,9 @@
   .summary-card .label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
   .summary-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
   .summary-card .delta { font-size: 0.8rem; margin-top: 0.2rem; }
+  .summary-card .value.green { color: #3fb950; }
+  .summary-card .value.amber { color: #d29922; }
+  .summary-card .value.red { color: #f85149; }
   .up { color: #3fb950; }
   .down { color: #f85149; }
 
@@ -135,23 +138,37 @@ function delta(current, previous, better) {
   const current = runs[runs.length - 1].metrics;
   const previous = runs.length > 1 ? runs[runs.length - 2].metrics : null;
 
+  // Traffic light thresholds: [green_threshold, amber_threshold]
+  // For "higher is better": value >= green → green, >= amber → amber, else red
+  // For "lower is better": value <= green → green, <= amber → amber, else red
+  function trafficLight(value, better, green, amber) {
+    if (value === null || value === undefined) return '';
+    const v = Number(value);
+    if (better === 'up') {
+      return v >= green ? 'green' : v >= amber ? 'amber' : 'red';
+    } else {
+      return v <= green ? 'green' : v <= amber ? 'amber' : 'red';
+    }
+  }
+
   const cards = [
-    { label: 'MI', value: fmt(current.mi), prev: previous?.mi, better: 'up' },
-    { label: 'Dead %', value: fmt(current.dead_file_pct) + '%', prev: previous?.dead_file_pct, better: 'down' },
-    { label: 'Dup %', value: fmt(current.dup_pct) + '%', prev: previous?.dup_pct, better: 'down' },
-    { label: 'Stmt %', value: fmt(current.cov_stmt) + '%', prev: previous?.cov_stmt, better: 'up' },
-    { label: 'Branch %', value: fmt(current.cov_branch) + '%', prev: previous?.cov_branch, better: 'up' },
-    { label: 'Func %', value: fmt(current.cov_func) + '%', prev: previous?.cov_func, better: 'up' },
-    { label: 'Max CRAP', value: fmt(current.max_crap_app, 0), prev: previous?.max_crap_app, better: 'down' },
-    { label: 'Test Files', value: fmtInt(current.test_files), prev: previous?.test_files, better: 'up' },
+    { label: 'MI', value: fmt(current.mi), raw: current.mi, prev: previous?.mi, better: 'up', green: 80, amber: 60 },
+    { label: 'Dead %', value: fmt(current.dead_file_pct) + '%', raw: current.dead_file_pct, prev: previous?.dead_file_pct, better: 'down', green: 5, amber: 10 },
+    { label: 'Dup %', value: fmt(current.dup_pct) + '%', raw: current.dup_pct, prev: previous?.dup_pct, better: 'down', green: 10, amber: 15 },
+    { label: 'Stmt %', value: fmt(current.cov_stmt) + '%', raw: current.cov_stmt, prev: previous?.cov_stmt, better: 'up', green: 80, amber: 60 },
+    { label: 'Branch %', value: fmt(current.cov_branch) + '%', raw: current.cov_branch, prev: previous?.cov_branch, better: 'up', green: 80, amber: 60 },
+    { label: 'Func %', value: fmt(current.cov_func) + '%', raw: current.cov_func, prev: previous?.cov_func, better: 'up', green: 80, amber: 60 },
+    { label: 'Max CRAP', value: fmt(current.max_crap_app, 0), raw: current.max_crap_app, prev: previous?.max_crap_app, better: 'down', green: 100, amber: 500 },
+    { label: 'Test Files', value: fmtInt(current.test_files), raw: current.test_files, prev: previous?.test_files, better: 'up', green: 1, amber: 0 },
   ];
 
   const grid = document.getElementById('summaryGrid');
   grid.innerHTML = cards.map(c => {
     const d = c.value !== '—' && c.prev !== null ? delta(c.value.replace('%','')*1 || 0, c.prev, c.better) : '';
+    const color = trafficLight(c.raw, c.better, c.green, c.amber);
     return `<div class="summary-card">
       <div class="label">${c.label}</div>
-      <div class="value">${c.value}</div>
+      <div class="value ${color}">${c.value}</div>
       <div class="delta">${d}</div>
     </div>`;
   }).join('');
