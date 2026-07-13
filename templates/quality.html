@@ -6,22 +6,20 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; }
-  h1 { font-size: 1.4rem; margin-bottom: 0.3rem; color: #58a6ff; }
+  h1 { font-size: 1.4rem; margin-bottom: 0.3rem; color: #58a6ff; display: flex; align-items: center; gap: 1rem; }
+  h1 .score { font-size: 2rem; font-weight: 800; }
+  h1 .score.green { color: #3fb950; }
+  h1 .score.amber { color: #d29922; }
+  h1 .score.red { color: #f85149; }
   .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 1.5rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
-  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; position: relative; }
   .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 0.8rem; }
   .card canvas { width: 100%; height: 200px; }
+  .card .tooltip { display: none; position: absolute; top: 0.8rem; right: 1rem; background: #1c2128; border: 1px solid #30363d; border-radius: 6px; padding: 0.6rem 0.8rem; font-size: 0.75rem; color: #8b949e; max-width: 220px; line-height: 1.4; z-index: 10; }
+  .card:hover .tooltip { display: block; }
   .legend { display: flex; gap: 1rem; margin-top: 0.6rem; font-size: 0.75rem; color: #8b949e; }
   .legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
-  .legend .mi::before { background: #58a6ff; }
-  .legend .dead::before { background: #f85149; }
-  .legend .dup::before { background: #d29922; }
-  .legend .stmt::before { background: #3fb950; }
-  .legend .func::before { background: #f778ba; }
-  .legend .crap::before { background: #ff7b72; }
-  .legend .branch::before { background: #79c0ff; }
-  .legend .lines::before { background: #d2a8ff; }
 
   /* Summary cards */
   .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
@@ -34,12 +32,6 @@
   .summary-card .value.red { color: #f85149; }
   .up { color: #3fb950; }
   .down { color: #f85149; }
-
-  /* Delta table */
-  .delta-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem; }
-  .delta-table th, .delta-table td { padding: 0.4rem 0.6rem; border: 1px solid #30363d; text-align: right; }
-  .delta-table th { color: #8b949e; font-weight: 600; }
-  .delta-table td:first-child { text-align: left; }
 
   /* Run history table */
   .run-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: 0.75rem; }
@@ -56,53 +48,55 @@
 </head>
 <body>
 
-<h1 id="title">Qualifier — Quality Dashboard</h1>
+<h1 id="title">Qualifier — Quality Dashboard <span class="score" id="score"></span></h1>
 <p class="subtitle" id="subtitle"></p>
 
 <!-- Summary cards -->
 <div class="summary-grid" id="summaryGrid"></div>
 
-<!-- Charts -->
+<!-- Charts: higher-is-better on left, lower-is-better on right -->
 <div class="grid">
+  <!-- Higher is better -->
   <div class="card">
     <h2>Maintainability Index (target ≥ 80)</h2>
     <canvas id="miChart"></canvas>
-    <div class="legend"><span class="mi">MI</span></div>
-  </div>
-  <div class="card">
-    <h2>Dead Files % (target ≤ 5%)</h2>
-    <canvas id="deadChart"></canvas>
-    <div class="legend"><span class="dead">Dead Files %</span></div>
-  </div>
-  <div class="card">
-    <h2>Duplication % (target ≤ 10%)</h2>
-    <canvas id="dupChart"></canvas>
-    <div class="legend"><span class="dup">Duplication %</span></div>
+    <div class="tooltip">How easy the code is to maintain. Higher is better. Target: 80+. Below 60 means the code is hard to work with.</div>
   </div>
   <div class="card">
     <h2>Statement Coverage (target ≥ 80%)</h2>
     <canvas id="stmtChart"></canvas>
-    <div class="legend"><span class="stmt">Statements %</span></div>
+    <div class="tooltip">What percentage of code is exercised by tests. Higher means more confidence that changes won't break things. Target: 80%+.</div>
   </div>
   <div class="card">
     <h2>Branch Coverage (target ≥ 80%)</h2>
     <canvas id="branchChart"></canvas>
-    <div class="legend"><span class="branch">Branches %</span></div>
+    <div class="tooltip">How many if/else paths are tested. Low branch coverage means some code paths have never been tested.</div>
   </div>
   <div class="card">
     <h2>Function Coverage (target ≥ 80%)</h2>
     <canvas id="funcChart"></canvas>
-    <div class="legend"><span class="func">Functions %</span></div>
-  </div>
-  <div class="card">
-    <h2>Max CRAP — App Code (lower is better)</h2>
-    <canvas id="crapChart"></canvas>
-    <div class="legend"><span class="crap">Max CRAP</span></div>
+    <div class="tooltip">What percentage of functions have been called by tests. Every function should be tested at least once.</div>
   </div>
   <div class="card">
     <h2>Line Coverage (target ≥ 80%)</h2>
     <canvas id="linesChart"></canvas>
-    <div class="legend"><span class="lines">Lines %</span></div>
+    <div class="tooltip">What percentage of lines run during tests. Similar to statement coverage but counts individual lines.</div>
+  </div>
+  <!-- Lower is better -->
+  <div class="card">
+    <h2>Dead Files % (target ≤ 5%)</h2>
+    <canvas id="deadChart"></canvas>
+    <div class="tooltip">Files that do nothing useful — no imports, no exports used. Dead files add confusion and slow down builds.</div>
+  </div>
+  <div class="card">
+    <h2>Duplication % (target ≤ 10%)</h2>
+    <canvas id="dupChart"></canvas>
+    <div class="tooltip">Code that's been copy-pasted. Duplicated code means bugs need fixing in multiple places. Target: under 10%.</div>
+  </div>
+  <div class="card">
+    <h2>Max CRAP — App Code (lower is better)</h2>
+    <canvas id="crapChart"></canvas>
+    <div class="tooltip">Complexity Risk Anti-Pattern. Measures the most complex function. High CRAP = hard to change without breaking things.</div>
   </div>
 </div>
 
@@ -132,24 +126,53 @@ function delta(current, previous, better) {
   return diff === 0 ? '' : `<span class="${cls}">${sign} ${Math.abs(diff).toFixed(1)}</span>`;
 }
 
+// ── TRAFFIC LIGHT ──
+function trafficLight(value, better, green, amber) {
+  if (value === null || value === undefined) return '';
+  const v = Number(value);
+  if (better === 'up') {
+    return v >= green ? 'green' : v >= amber ? 'amber' : 'red';
+  } else {
+    return v <= green ? 'green' : v <= amber ? 'amber' : 'red';
+  }
+}
+
+// ── OVERALL SCORE ──
+(function renderScore() {
+  if (runs.length === 0) return;
+  const m = runs[runs.length - 1].metrics;
+
+  const metrics = [
+    { value: m.mi, better: 'up', green: 80, amber: 60 },
+    { value: m.dead_file_pct, better: 'down', green: 5, amber: 10 },
+    { value: m.dup_pct, better: 'down', green: 10, amber: 15 },
+    { value: m.cov_stmt, better: 'up', green: 80, amber: 60 },
+    { value: m.cov_branch, better: 'up', green: 80, amber: 60 },
+    { value: m.cov_func, better: 'up', green: 80, amber: 60 },
+    { value: m.max_crap_app, better: 'down', green: 100, amber: 500 },
+  ];
+
+  let greenCount = 0, amberCount = 0, redCount = 0;
+  metrics.forEach(mt => {
+    const color = trafficLight(mt.value, mt.better, mt.green, mt.amber);
+    if (color === 'green') greenCount++;
+    else if (color === 'amber') amberCount++;
+    else redCount++;
+  });
+
+  const total = metrics.length;
+  // Score: green = 100%, amber = 50%, red = 0%
+  const score = Math.round(((greenCount + amberCount * 0.5) / total) * 100);
+  const el = document.getElementById('score');
+  el.textContent = score + '%';
+  el.className = 'score ' + (score >= 80 ? 'green' : score >= 50 ? 'amber' : 'red');
+})();
+
 // ── SUMMARY CARDS ──
 (function renderSummary() {
   if (runs.length === 0) return;
   const current = runs[runs.length - 1].metrics;
   const previous = runs.length > 1 ? runs[runs.length - 2].metrics : null;
-
-  // Traffic light thresholds: [green_threshold, amber_threshold]
-  // For "higher is better": value >= green → green, >= amber → amber, else red
-  // For "lower is better": value <= green → green, <= amber → amber, else red
-  function trafficLight(value, better, green, amber) {
-    if (value === null || value === undefined) return '';
-    const v = Number(value);
-    if (better === 'up') {
-      return v >= green ? 'green' : v >= amber ? 'amber' : 'red';
-    } else {
-      return v <= green ? 'green' : v <= amber ? 'amber' : 'red';
-    }
-  }
 
   const cards = [
     { label: 'MI', value: fmt(current.mi), raw: current.mi, prev: previous?.mi, better: 'up', green: 80, amber: 60 },
@@ -175,7 +198,7 @@ function delta(current, previous, better) {
 })();
 
 // ── CHART RENDERING ──
-function drawLine(canvasId, data, key, color, target, invert) {
+function drawLine(canvasId, data, key, target, invert) {
   const c = document.getElementById(canvasId);
   if (!c) return;
   const ctx = c.getContext('2d');
@@ -189,7 +212,6 @@ function drawLine(canvasId, data, key, color, target, invert) {
 
   const vals = data.map(d => d.metrics[key]).filter(v => v !== null && v !== undefined);
   if (vals.length === 0) {
-    // Draw "no data" placeholder
     ctx.fillStyle = '#484f58';
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
@@ -225,8 +247,19 @@ function drawLine(canvasId, data, key, color, target, invert) {
     ctx.textAlign = 'left'; ctx.fillText((invert ? '≤ ' : '≥ ') + target + (key === 'max_crap_app' ? '' : '%'), pad.l + 5, ty - 5);
   }
 
-  // Line
-  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  // Line color: traffic light based on latest value
+  const latest = vals[vals.length - 1];
+  let lineColor;
+  if (invert) {
+    // Lower is better
+    lineColor = latest <= target ? '#3fb950' : latest <= target * 1.5 ? '#d29922' : '#f85149';
+  } else {
+    // Higher is better
+    lineColor = latest >= target ? '#3fb950' : latest >= target * 0.75 ? '#d29922' : '#f85149';
+  }
+
+  // Draw line
+  ctx.strokeStyle = lineColor; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
   ctx.beginPath();
   let started = false;
   data.forEach((d, i) => {
@@ -237,16 +270,6 @@ function drawLine(canvasId, data, key, color, target, invert) {
   });
   ctx.stroke();
 
-  // Dots
-  data.forEach((d, i) => {
-    const v = d.metrics[key];
-    if (v === null || v === undefined) return;
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(x(i), y(v), 4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#c9d1d9'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(key === 'max_crap_app' ? v.toFixed(0) : v.toFixed(1) + '%', x(i), y(v) - 10);
-  });
-
   // X labels
   ctx.fillStyle = '#484f58'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
   const step = Math.max(1, Math.floor(data.length / 10));
@@ -254,19 +277,18 @@ function drawLine(canvasId, data, key, color, target, invert) {
 }
 
 // ── DRAW CHARTS ──
-// Wait for layout so canvas elements have non-zero dimensions
 requestAnimationFrame(() => {
-  drawLine('miChart', runs, 'mi', '#58a6ff', 80, false);
-  drawLine('deadChart', runs, 'dead_file_pct', '#f85149', 5, true);
-  drawLine('dupChart', runs, 'dup_pct', '#d29922', 10, true);
-  drawLine('stmtChart', runs, 'cov_stmt', '#3fb950', 80, false);
-  drawLine('branchChart', runs, 'cov_branch', '#79c0ff', 80, false);
-  drawLine('funcChart', runs, 'cov_func', '#f778ba', 80, false);
-  drawLine('crapChart', runs, 'max_crap_app', '#ff7b72', null, true);
-  drawLine('linesChart', runs, 'cov_lines', '#d2a8ff', 80, false);
+  drawLine('miChart', runs, 'mi', 80, false);
+  drawLine('deadChart', runs, 'dead_file_pct', 5, true);
+  drawLine('dupChart', runs, 'dup_pct', 10, true);
+  drawLine('stmtChart', runs, 'cov_stmt', 80, false);
+  drawLine('branchChart', runs, 'cov_branch', 80, false);
+  drawLine('funcChart', runs, 'cov_func', 80, false);
+  drawLine('crapChart', runs, 'max_crap_app', null, true);
+  drawLine('linesChart', runs, 'cov_lines', 80, false);
 });
 
-// ── RUN HISTORY TABLE ──
+// ── RUN HISTORY TABLE (latest first) ──
 (function renderRunTable() {
   const cols = [
     { key: 'ts', label: 'Date', fmt: v => v.slice(0, 16).replace('T', ' '), isMeta: true },
@@ -292,8 +314,11 @@ requestAnimationFrame(() => {
   thead.innerHTML = '<tr>' + cols.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
   tbl.appendChild(thead);
   const tbody = document.createElement('tbody');
-  runs.forEach((r, i) => {
-    const prev = i > 0 ? runs[i - 1].metrics : null;
+
+  // Reverse: latest first
+  const reversed = runs.slice().reverse();
+  reversed.forEach((r, i) => {
+    const prev = i > 0 ? reversed[i - 1].metrics : null;
     const cells = cols.map(c => {
       const val = c.isMeta ? r[c.key] : r.metrics[c.key];
       const prevVal = prev ? prev[c.key] : null;
