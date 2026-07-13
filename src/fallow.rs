@@ -3,38 +3,8 @@ use crate::metrics::MetricValue;
 use anyhow::Result;
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::process::Command;
 
 pub struct FallowChecker;
-
-/// Run a command via npx, handling Windows (npx.cmd) and direct node_modules paths.
-fn run_npx(project_dir: &Path, package: &str, args: &[&str]) -> Result<std::process::Output> {
-    // Try direct node_modules/.bin path first (most reliable cross-platform)
-    let bin_dir = project_dir.join("node_modules/.bin");
-    if bin_dir.exists() {
-        // On Windows try .cmd, on Unix try direct
-        #[cfg(windows)]
-        let cmd_path = bin_dir.join(format!("{}.cmd", package));
-        #[cfg(not(windows))]
-        let cmd_path = bin_dir.join(package);
-
-        if cmd_path.exists() {
-            return Ok(Command::new(&cmd_path).args(args).current_dir(project_dir).output()?);
-        }
-    }
-
-    // Fallback to npx
-    #[cfg(windows)]
-    let npx_cmd = "npx.cmd";
-    #[cfg(not(windows))]
-    let npx_cmd = "npx";
-
-    Ok(Command::new(npx_cmd)
-        .arg(package)
-        .args(args)
-        .current_dir(project_dir)
-        .output()?)
-}
 
 impl Checker for FallowChecker {
     fn name(&self) -> &str {
@@ -47,7 +17,12 @@ impl Checker for FallowChecker {
     }
 
     fn run(&self, project_dir: &Path, verbose: bool) -> Result<CheckerOutput> {
-        let output = run_npx(project_dir, "fallow", &["--format", "json"])?;
+        let (output, was_docker) =
+            crate::exec::run_command(project_dir, "fallow", &["--format", "json"])?;
+
+        if was_docker && verbose {
+            println!("  → fallow ran inside Docker container");
+        }
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

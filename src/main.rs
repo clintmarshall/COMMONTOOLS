@@ -4,6 +4,8 @@ mod clippy;
 mod compat_chart;
 mod compat_md;
 mod detect;
+mod docker;
+mod exec;
 mod fallow;
 mod history;
 mod metrics;
