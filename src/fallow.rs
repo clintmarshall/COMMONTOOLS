@@ -16,7 +16,7 @@ impl Checker for FallowChecker {
             || project_dir.join("fallow.toml").exists()
     }
 
-    fn run(&self, project_dir: &Path, verbose: bool) -> Result<CheckerOutput> {
+    fn run(&self, project_dir: &Path, verbose: bool, _last_workspace_hash: Option<&str>) -> Result<CheckerOutput> {
         let (output, was_docker) =
             crate::exec::run_command(project_dir, "fallow", &["--format", "json"])?;
 

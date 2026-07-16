@@ -43,8 +43,7 @@ pub fn update(md_path: &Path, metrics: &UnifiedMetrics, note: &str) -> Result<()
     let cov_stmt = metrics.cov_stmt.unwrap_or(0.0);
     let cov_branch = metrics.cov_branch.unwrap_or(0.0);
     let cov_func = metrics.cov_func.unwrap_or(0.0);
-    let cov_lines = metrics.cov_lines.unwrap_or(0.0);
-
+  
     let crap_display = if max_crap >= 1482.0 {
         format!(">{max_crap:.0} (scripts/sync-from-wordpress)")
     } else {
@@ -52,7 +51,7 @@ pub fn update(md_path: &Path, metrics: &UnifiedMetrics, note: &str) -> Result<()
     };
 
     let md_row = format!(
-        "| {} | {} | {} ({}) | {} ({}) | {} | {} | {} | {} | {} | {:.1}% | {} | {:.2}% | {:.2}% | {:.2}% | {:.2}% | {} |",
+        "| {} | {} | {} ({}) | {} ({}) | {} | {} | {} | {} | {} | {:.1}% | {} | {:.2}% | {:.2}% | {:.2}% | {} |",
         now,
         format_comma(loc),
         dead_count,
@@ -69,7 +68,6 @@ pub fn update(md_path: &Path, metrics: &UnifiedMetrics, note: &str) -> Result<()
         cov_stmt,
         cov_branch,
         cov_func,
-        cov_lines,
         note,
     );
 

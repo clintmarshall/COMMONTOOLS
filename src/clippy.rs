@@ -16,7 +16,7 @@ impl Checker for ClippyChecker {
         project_dir.join("Cargo.toml").exists()
     }
 
-    fn run(&self, project_dir: &Path, verbose: bool) -> Result<CheckerOutput> {
+    fn run(&self, project_dir: &Path, verbose: bool, _last_workspace_hash: Option<&str>) -> Result<CheckerOutput> {
         // Run clippy with JSON output
         let output = Command::new("cargo")
             .args(&["clippy", "--message-format", "json", "--"])

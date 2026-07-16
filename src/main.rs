@@ -17,6 +17,7 @@ use clap::Parser;
 use chrono::Utc;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Qualifier — Universal Project Quality Dashboard
 ///
@@ -74,6 +75,17 @@ fn main() -> Result<()> {
 
     println!("📋 Detected checkers: {}", checkers.join(", "));
 
+    // Compute workspace hash (commit SHA + diff hash)
+    let workspace_hash = get_workspace_hash(&project_dir);
+    if let Some(hash) = &workspace_hash {
+        println!("🔖 Workspace: {}", &hash[..12]);
+    }
+
+    // Load existing history early to check last run's workspace hash (for skip logic)
+    let json_path = project_dir.join(&args.json);
+    let mut history = history::load(&json_path).unwrap_or_default();
+    let last_workspace_hash = history.runs.last().and_then(|r| r.workspace_hash.clone());
+
     // 2. Run checkers and collect metrics
     let mut all_metrics: BTreeMap<String, metrics::MetricValue> = BTreeMap::new();
     let mut checker_results: BTreeMap<String, history::CheckerResult> = BTreeMap::new();
@@ -88,7 +100,7 @@ fn main() -> Result<()> {
         }
 
         println!("⏳ Running {name}...");
-        match checker.run(&project_dir, args.verbose) {
+        match checker.run(&project_dir, args.verbose, last_workspace_hash.as_deref()) {
             Ok(result) => {
                 let elapsed = start.elapsed().as_millis();
                 println!("✅ {name} completed in {elapsed}ms");
@@ -132,11 +144,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // 6. Load existing history (always in project root for consistency)
-    let json_path = project_dir.join(&args.json);
-    let mut history = history::load(&json_path)?;
-
-    // 7. Ensure project name is set
+    // 6. Ensure project name is set
     if history.project.is_empty() {
         history.project = project_name.clone();
     }
@@ -146,6 +154,7 @@ fn main() -> Result<()> {
         ts: Utc::now().to_rfc3339(),
         note: note.clone().unwrap_or_default(),
         commentary: String::new(),
+        workspace_hash: workspace_hash.clone(),
         checkers: checker_results,
         metrics: unified.clone(),
     };
@@ -197,6 +206,40 @@ fn main() -> Result<()> {
 
     println!("\nDone. Open quality.html in a browser to see the dashboard.");
     Ok(())
+}
+
+/// Compute a SHA-256 hash of the workspace state (commit SHA + working tree diff).
+/// Identical hash = identical code state, even with uncommitted changes.
+/// Returns None if not a git repo or git isn't available.
+fn get_workspace_hash(project_dir: &Path) -> Option<String> {
+    // Get commit SHA
+    let commit_sha = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(project_dir)
+        .output()
+        .ok()
+        .and_then(|out| {
+            if out.status.success() {
+                Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            } else {
+                None
+            }
+        })?;
+
+    // Get working tree diff, excluding qualifier's own output files
+    // so that qualifier runs don't invalidate the hash themselves
+    let diff = Command::new("git")
+        .args(["diff", "--", ":!qualifier.json", ":!public/", ":!coverage/"])
+        .current_dir(project_dir)
+        .output()
+        .ok()
+        .and_then(|out| Some(String::from_utf8_lossy(&out.stdout).to_string()))
+        .unwrap_or_default();
+
+    // Hash: "commit_sha:sha256(diff)"
+    use sha2::{Digest, Sha256};
+    let diff_hash = hex::encode(Sha256::digest(&diff));
+    Some(format!("{commit_sha}:{diff_hash}"))
 }
 
 fn detect_project_name(project_dir: &Path) -> String {

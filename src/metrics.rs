@@ -48,7 +48,6 @@ pub struct UnifiedMetrics {
     pub cov_stmt: Option<f64>,
     pub cov_branch: Option<f64>,
     pub cov_func: Option<f64>,
-    pub cov_lines: Option<f64>,
     pub test_count: Option<i64>,
     pub test_files: Option<i64>,
 
@@ -85,7 +84,6 @@ pub fn build_unified(metrics: &BTreeMap<String, MetricValue>) -> UnifiedMetrics 
         cov_stmt: get_float(metrics, "cov_stmt"),
         cov_branch: get_float(metrics, "cov_branch"),
         cov_func: get_float(metrics, "cov_func"),
-        cov_lines: get_float(metrics, "cov_lines"),
         test_count: get_int(metrics, "test_count"),
         test_files: get_int(metrics, "test_files"),
         clippy_warnings: get_int(metrics, "clippy_warnings"),

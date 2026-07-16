@@ -18,7 +18,17 @@ impl Checker for VitestChecker {
             .unwrap_or(false)
     }
 
-    fn run(&self, project_dir: &Path, verbose: bool) -> Result<CheckerOutput> {
+    fn run(
+        &self,
+        project_dir: &Path,
+        verbose: bool,
+        last_workspace_hash: Option<&str>,
+    ) -> Result<CheckerOutput> {
+        // Check if we can skip: same code as last run + coverage files exist
+        if Self::can_skip(project_dir, last_workspace_hash, verbose) {
+            return Self::parse_existing_coverage(project_dir);
+        }
+
         // Run vitest with coverage (auto-detects Docker container)
         let (output, was_docker) =
             crate::exec::run_command(project_dir, "vitest", &["run", "--coverage"])?;
@@ -53,12 +63,7 @@ impl Checker for VitestChecker {
                                 metrics.insert("cov_func".to_string(), MetricValue::Float(pct));
                             }
                         }
-                        if let Some(lines) = total.get("lines") {
-                            if let Some(pct) = lines.get("pct").and_then(|v| v.as_f64()) {
-                                metrics.insert("cov_lines".to_string(), MetricValue::Float(pct));
-                            }
-                        }
-                        if let Some(stmts) = total.get("statements") {
+                          if let Some(stmts) = total.get("statements") {
                             if let Some(pct) = stmts.get("pct").and_then(|v| v.as_f64()) {
                                 metrics.insert("cov_stmt".to_string(), MetricValue::Float(pct));
                             }
@@ -82,10 +87,7 @@ impl Checker for VitestChecker {
                     if let Some(v) = clover.func {
                         metrics.insert("cov_func".to_string(), MetricValue::Float(v));
                     }
-                    if let Some(v) = clover.lines {
-                        metrics.insert("cov_lines".to_string(), MetricValue::Float(v));
-                    }
-                }
+                 }
             }
         }
 
@@ -106,10 +108,7 @@ impl Checker for VitestChecker {
                             if let Some(func) = coverage.func {
                                 metrics.insert("cov_func".to_string(), MetricValue::Float(func));
                             }
-                            if let Some(lines) = coverage.lines {
-                                metrics.insert("cov_lines".to_string(), MetricValue::Float(lines));
-                            }
-                        }
+                         }
                     }
                 }
             }
@@ -142,13 +141,147 @@ impl Checker for VitestChecker {
     }
 }
 
+// ── VitestChecker helpers ──
+
+impl VitestChecker {
+    /// Check if vitest can be skipped: same workspace hash as last run and coverage files exist.
+    /// The workspace hash (commit SHA + diff hash) is computed in main.rs, so we just compare.
+    fn can_skip(
+        project_dir: &Path,
+        last_workspace_hash: Option<&str>,
+        verbose: bool,
+    ) -> bool {
+        // Must have a previous hash to compare against
+        let Some(last_hash) = last_workspace_hash else {
+            return false;
+        };
+
+        // Compute current workspace hash (same logic as main.rs)
+        let Some(current_hash) = crate::get_workspace_hash(project_dir) else {
+            return false;
+        };
+
+        // Code state has changed — must run
+        if current_hash != last_hash {
+            return false;
+        }
+
+        // Check if any coverage files exist
+        let has_coverage = project_dir.join("coverage/coverage-summary.json").exists()
+            || project_dir.join("coverage/clover.xml").exists()
+            || project_dir.join("coverage/coverage-final.json").exists();
+
+        if has_coverage && verbose {
+            println!("  → vitest skipped — code unchanged since last run, reusing coverage");
+        }
+
+        has_coverage
+    }
+
+    /// Parse coverage from existing files without running vitest.
+    fn parse_existing_coverage(project_dir: &Path) -> Result<CheckerOutput> {
+        let mut metrics = BTreeMap::new();
+
+        // 1. Try coverage-summary.json (Istanbul provider)
+        let summary_path = project_dir.join("coverage/coverage-summary.json");
+        if summary_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&summary_path) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(total) = json.get("total") {
+                        if let Some(branches) = total.get("branches") {
+                            if let Some(pct) = branches.get("pct").and_then(|v| v.as_f64()) {
+                                metrics.insert("cov_branch".to_string(), MetricValue::Float(pct));
+                            }
+                        }
+                        if let Some(funcs) = total.get("functions") {
+                            if let Some(pct) = funcs.get("pct").and_then(|v| v.as_f64()) {
+                                metrics.insert("cov_func".to_string(), MetricValue::Float(pct));
+                            }
+                        }
+                        if let Some(stmts) = total.get("statements") {
+                            if let Some(pct) = stmts.get("pct").and_then(|v| v.as_f64()) {
+                                metrics.insert("cov_stmt".to_string(), MetricValue::Float(pct));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Try clover.xml
+        if metrics.get("cov_stmt").is_none() {
+            let clover_path = project_dir.join("coverage/clover.xml");
+            if let Ok(content) = std::fs::read_to_string(&clover_path) {
+                if let Ok(clover) = parse_clover_xml(&content) {
+                    if let Some(v) = clover.stmt {
+                        metrics.insert("cov_stmt".to_string(), MetricValue::Float(v));
+                    }
+                    if let Some(v) = clover.branch {
+                        metrics.insert("cov_branch".to_string(), MetricValue::Float(v));
+                    }
+                    if let Some(v) = clover.func {
+                        metrics.insert("cov_func".to_string(), MetricValue::Float(v));
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback: coverage-final.json
+        if metrics.get("cov_stmt").is_none() {
+            let final_path = project_dir.join("coverage/coverage-final.json");
+            if final_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&final_path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(map) = json.as_object() {
+                            let coverage = parse_istanbul_coverage(map);
+                            if let Some(stmt) = coverage.stmt {
+                                metrics.insert("cov_stmt".to_string(), MetricValue::Float(stmt));
+                            }
+                            if let Some(branch) = coverage.branch {
+                                metrics.insert("cov_branch".to_string(), MetricValue::Float(branch));
+                            }
+                            if let Some(func) = coverage.func {
+                                metrics.insert("cov_func".to_string(), MetricValue::Float(func));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Test file count from coverage-final.json
+        if metrics.get("test_files").is_none() {
+            let final_path = project_dir.join("coverage/coverage-final.json");
+            if final_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&final_path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(map) = json.as_object() {
+                            let file_count = map.len();
+                            if file_count > 0 {
+                                metrics.insert(
+                                    "test_files".to_string(),
+                                    MetricValue::Int(file_count as i64),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(CheckerOutput {
+            version: None,
+            metrics,
+        })
+    }
+}
+
 // ── Clover XML parsing ──
 
 struct CloverCoverage {
     stmt: Option<f64>,
     branch: Option<f64>,
     func: Option<f64>,
-    lines: Option<f64>,
 }
 
 /// Parse Clover XML coverage report.
@@ -168,13 +301,11 @@ fn parse_clover_xml(content: &str) -> Result<CloverCoverage> {
     let stmt = parse_int_pair(tag, "statements", "coveredstatements");
     let branch = parse_int_pair(tag, "conditionals", "coveredconditionals");
     let func = parse_int_pair(tag, "methods", "coveredmethods");
-    let lines = stmt; // In Clover, statements == lines
 
     Ok(CloverCoverage {
         stmt,
         branch,
         func,
-        lines,
     })
 }
 
@@ -205,7 +336,6 @@ struct IstanbulCoverage {
     stmt: Option<f64>,
     branch: Option<f64>,
     func: Option<f64>,
-    lines: Option<f64>,
 }
 
 /// Parse Istanbul-format coverage-final.json
@@ -217,9 +347,6 @@ fn parse_istanbul_coverage(map: &serde_json::Map<String, serde_json::Value>) -> 
     let mut covered_branch: usize = 0;
     let mut total_func: usize = 0;
     let mut covered_func: usize = 0;
-    let mut total_lines: usize = 0;
-    let mut covered_lines: usize = 0;
-
     for (_, file_data) in map {
         // Statements: statementMap defines them, `s` tracks hits
         if let Some(stmt_map) = file_data.get("statementMap").and_then(|m| m.as_object()) {
@@ -230,11 +357,9 @@ fn parse_istanbul_coverage(map: &serde_json::Map<String, serde_json::Value>) -> 
                 if let Some(n) = count.as_i64() {
                     if n > 0 {
                         covered_stmt += 1;
-                        covered_lines += 1;
                     }
                 }
             }
-            total_lines += s.len();
         }
 
         // Branches
@@ -286,6 +411,5 @@ fn parse_istanbul_coverage(map: &serde_json::Map<String, serde_json::Value>) -> 
         stmt: pct(covered_stmt, total_stmt),
         branch: pct(covered_branch, total_branch),
         func: pct(covered_func, total_func),
-        lines: pct(covered_lines, total_lines),
     }
 }

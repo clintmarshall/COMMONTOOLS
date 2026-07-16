@@ -120,12 +120,6 @@
     <div class="tooltip">What percentage of functions have been called by tests. Every function should be tested at least once.</div>
   </div>
   <div class="card">
-    <h2>Line Coverage</h2>
-    <div class="metric-value" id="linesValue"></div>
-    <canvas id="linesChart"></canvas>
-    <div class="tooltip">What percentage of lines run during tests. Similar to statement coverage but counts individual lines.</div>
-  </div>
-  <div class="card">
     <h2>Dead Files %</h2>
     <div class="metric-value" id="deadValue"></div>
     <canvas id="deadChart"></canvas>
@@ -229,7 +223,6 @@ function trafficLight(value, better, green, amber) {
     { id: 'stmt', valueFn: v => fmt(v) + '%', key: 'cov_stmt', better: 'up', green: 80, amber: 60 },
     { id: 'branch', valueFn: v => fmt(v) + '%', key: 'cov_branch', better: 'up', green: 80, amber: 60 },
     { id: 'func', valueFn: v => fmt(v) + '%', key: 'cov_func', better: 'up', green: 80, amber: 60 },
-    { id: 'lines', valueFn: v => fmt(v) + '%', key: 'cov_lines', better: 'up', green: 80, amber: 60 },
     { id: 'dead', valueFn: v => fmt(v) + '%', key: 'dead_file_pct', better: 'down', green: 5, amber: 10 },
     { id: 'dup', valueFn: v => fmt(v) + '%', key: 'dup_pct', better: 'down', green: 10, amber: 15 },
     { id: 'crap', valueFn: v => fmt(v, 0), key: 'max_crap_app', better: 'down', green: 100, amber: 500 },
@@ -348,7 +341,6 @@ requestAnimationFrame(() => {
   drawLine('branchChart', runs, 'cov_branch', 80, false);
   drawLine('funcChart', runs, 'cov_func', 80, false);
   drawLine('crapChart', runs, 'max_crap_app', null, true);
-  drawLine('linesChart', runs, 'cov_lines', 80, false);
 });
 
 // ── RUN HISTORY TABLE (latest first) ──

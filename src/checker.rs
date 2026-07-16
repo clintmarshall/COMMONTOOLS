@@ -16,11 +16,13 @@ pub trait Checker: Send + Sync {
     /// Check if this checker can run in the given project
     fn can_run(&self, project_dir: &Path) -> bool;
 
-    /// Run the checker and return metrics
+    /// Run the checker and return metrics.
+    /// `last_workspace_hash` is the workspace hash from the previous run (for skip logic).
     fn run(
         &self,
         project_dir: &Path,
         verbose: bool,
+        last_workspace_hash: Option<&str>,
     ) -> Result<CheckerOutput, anyhow::Error>;
 }
 

@@ -28,6 +28,9 @@ pub struct Run {
     pub ts: String,
     pub note: String,
     pub commentary: String,
+    /// SHA-256 hash of (git commit SHA + working tree diff).
+    /// Identical hash = identical code state, even with uncommitted changes.
+    pub workspace_hash: Option<String>,
     pub checkers: BTreeMap<String, CheckerResult>,
     pub metrics: UnifiedMetrics,
 }
